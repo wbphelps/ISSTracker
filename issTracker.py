@@ -25,6 +25,7 @@ from issPass import ISSPass, VisualMagnitude
 import logging
 import threading
 from blinkstick import blinkstick
+from issTLE import issTLE
 
 atexit.register(exit)
 
@@ -79,13 +80,19 @@ sun = ephem.Sun(obs)
 #  '2 25544  51.6485 352.5641 0003745 129.1118 231.0366 15.50282351 32142')
 #date = Feb 13 2014
 
-iss_tle = ('ISS (NASA)',
-   '1 25544U 98067A   14047.37128447  .00016717  00000-0  10270-3 0  9021',
-   '2 25544  51.6475 338.5079 0003760 140.1188 220.0239 15.50386824 32582')
+#iss_tle = ('ISS (NASA)',
+#   '1 25544U 98067A   14047.37128447  .00016717  00000-0  10270-3 0  9021',
+#   '2 25544  51.6475 338.5079 0003760 140.1188 220.0239 15.50386824 32582')
 #date = Feb 16 2014
 
+tle = issTLE()
+tle.load()
+if (datetime.now()-tle.date) > timedelta(days=1):
+    tle.fetch()
+    tle.save()
 
-iss = ephem.readtle(iss_tle[0], iss_tle[1], iss_tle[2] )
+
+iss = ephem.readtle(tle.tle[0], tle.tle[1], tle.tle[2] )
 iss.compute(obs)
 print obs.next_pass(iss)
 
@@ -215,9 +222,9 @@ def setupInfo():
 
     txtColor = (255,63,0)
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
-    txt = txtFont.render("Type:  " , 1, txtColor)
-    bg.blit(txt, (col1, line1))
     txt = txtFont.render("Start: " , 1, txtColor)
+    bg.blit(txt, (col1, line1))
+    txt = txtFont.render("Type:  " , 1, txtColor)
     bg.blit(txt, (col1, line2))
     txt = txtFont.render("Mag:   " , 1, txtColor)
     bg.blit(txt, (col1, line3))
@@ -238,6 +245,10 @@ def showInfo(tNow, issp, obs, iss, sun):
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     screen.blit(bg, bgRect) # write background image
 
+    t1 = ephem.localtime(tr).strftime('%b %d %H:%M:%S')
+    txt = txtFont.render(t1 , 1, txtColor)
+    screen.blit(txt, (col2, line1))
+
     if issp.daytimepass:
         txt = "Daytime"
     elif issp.nightpass and issp.beforesunrise:
@@ -245,10 +256,6 @@ def showInfo(tNow, issp, obs, iss, sun):
     elif issp.nightpass and issp.aftersunset:
         txt = "Evening"
     txt = txtFont.render(txt , 1, txtColor)
-    screen.blit(txt, (col2, line1))
-
-    t1 = ephem.localtime(tr).strftime('%b %d %H:%M:%S')
-    txt = txtFont.render(t1 , 1, txtColor)
     screen.blit(txt, (col2, line2))
 
     if (issp.maxmag>99):
@@ -298,7 +305,7 @@ def setupPass(tNow, tr, ts, obs, iss, sun):
 #    if (math.degrees(sun.alt>0)):  "Sun is up"
 
     sunaltd = math.degrees(sun.alt)
-    print "sun alt {}".format(sunaltd)
+#    print "sun alt {}".format(sunaltd)
     if (sunaltd > 0):
         bgcolor = (96,96,128)
     elif (sunaltd > -15): # twilight ???
@@ -324,17 +331,17 @@ def setupPass(tNow, tr, ts, obs, iss, sun):
 
     venus = ephem.Venus()
     venus.compute(obs)
-    print "venus alt {}".format(math.degrees(venus.alt))
+#    print "venus alt {}".format(math.degrees(venus.alt))
     if (venus.alt>0):
       pygame.draw.circle(screen, (255,255,255), getxy(venus.alt, venus.az), 3, 0)
     mars = ephem.Mars()
     mars.compute(obs)
-    print "mars alt {}".format(math.degrees(mars.alt))
+#    print "mars alt {}".format(math.degrees(mars.alt))
     if (mars.alt>0):
       pygame.draw.circle(screen, (255,0,0), getxy(mars.alt, mars.az), 3, 0)
     jupiter = ephem.Jupiter()
     jupiter.compute(obs)
-    print "jupiter alt {}".format(math.degrees(jupiter.alt))
+#    print "jupiter alt {}".format(math.degrees(jupiter.alt))
     if (jupiter.alt>0):
       pygame.draw.circle(screen, (255,255,128), getxy(jupiter.alt, jupiter.az), 3, 0)
 
