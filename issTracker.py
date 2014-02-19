@@ -111,12 +111,12 @@ print obs.next_pass(iss)
 
 # ---------------------------------------------------------------
 def signal_handler(signal, frame):
-    global blinkstick_on, blt
+    global blinkstick_on, BLST
     print 'SIGNAL {}'.format(signal)
     sleep(1)
     pygame.quit()
     if blinkstick_on:
-      blt.stop()
+      BLST.stop()
     sys.exit(0)
 
 def exit():
@@ -367,7 +367,7 @@ def setupPass(tNow, tr, ts, obs, iss, sun):
     pygame.display.update()
 
 def showPass(tNow, ts, obs, iss, sun):
-    global bg, issImg, issRect, blt
+    global bg, issImg, issRect, BLST
     txtColor = (255,255,0)
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
 
@@ -376,8 +376,8 @@ def showPass(tNow, ts, obs, iss, sun):
     issaz = math.degrees(iss.az)
 
     if blinkstick_on:
-      blt.set(vmag, issalt, 10)
-      blt.start()
+      BLST.set(vmag, issalt, 10)
+      BLST.start()
 
     t1 = ephem.localtime(obs.date).strftime("%T")
     t1 = txtFont.render(t1, 1, txtColor)
@@ -434,15 +434,15 @@ logging.info("ISS-Tracker System Startup")
 #    if opt.blinkstick:
 if True:
     blinkstick_on = True
-    blt = BlinkStick(-3, 90, 10)
-    blt.start()
-    sleep(1)
-    blt.stop()
+    BLST = BlinkStick(-3, 90, 3)
+    BLST.start()
+    sleep(2)
+    BLST.stop()
 
-#    blt.set(0, 45, 10)
-#    blt.start()
+#    BLST.set(0, 45, 10)
+#    BLST.start()
 #    sleep(1)
-#    blt.stop()
+#    BLST.stop()
 
 while(True):
 
@@ -469,13 +469,16 @@ while(True):
 
     # wait for ISS to rise
         while ephem.localtime(tr) > ephem.localtime(obs.date) :
+            t1 = datetime.now()
             if (realTime):
               tNow = datetime.utcnow()
             else:
               tNow = tNow + timedelta(seconds=1)
             obs.date = tNow
             showInfo(tNow, issp, obs, iss, sun)
-            sleep(stime)
+            dt = (datetime.now()-t1).total_seconds()
+            if (dt<stime):
+                sleep(stime-dt)
 
 # ISS is up now! Ddisplay the Pass screen with the track, then show it's position in real time
 
@@ -499,7 +502,7 @@ while(True):
         if (dt<stime):
             sleep(stime-dt)
 
-    blt.stop()
+    BLST.stop()
     # after 1 demo, switch to real time
     stime = 1
     realTime = True
