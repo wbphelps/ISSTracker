@@ -19,7 +19,7 @@ import pygame
 from pygame.locals import *
 from time import sleep
 from datetime import datetime, timedelta
-import ephem
+import ephem, ephem.stars
 import math
 from issPass import ISSPass, VisualMagnitude
 import logging
@@ -38,8 +38,8 @@ col1 = 16
 col2 = 115
 
 lsize = 28
-line0 = 20
-line1 = line0+lsize
+line0 = 15
+line1 = 20+lsize
 line2 = line1+lsize
 line3 = line2+lsize
 line4 = line3+lsize
@@ -55,17 +55,19 @@ obs.lon = '-122.124'
 realTime = True
 realTime = False
 stime = 1
-#stime = 0.1 # 10x speed
-stime = 0.2 # 5x speed
+#stime = 0.5  # 2x normal speed
+#stime = 0.2 # 5x speed
+stime = 0.1 # 10x speed
 
 tNow = datetime.utcnow()
-tNow = datetime(2014, 2, 6, 3, 1, 0) # 1 minute before ISS is due
+tNow = datetime(2014, 2, 6, 3, 3, 0) # 1 minute before ISS is due
 #tNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
 #tNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
 #tNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
 #tNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
 #tNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
 #tNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
+#tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 #tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 
 obs.date = tNow
@@ -108,9 +110,12 @@ print obs.next_pass(iss)
 
 # ---------------------------------------------------------------
 def signal_handler(signal, frame):
+    global blinkstick_on, blt
     print 'SIGNAL {}'.format(signal)
     sleep(1)
     pygame.quit()
+    if blinkstick_on:
+      blt.stop()
     sys.exit(0)
 
 def exit():
@@ -132,29 +137,56 @@ def map(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
 
-class BlinkThread(threading.Thread):
-  def __init__(self, mag, alt):
-    threading.Thread.__init__(self)
+class BlinkStick():
+
+  def __init__(self, mag, alt, count=1):
     self.mag = mag
     self.alt = alt
     self.bstick = blinkstick.find_first()
     self.running = False
+    self.thread = 0
+    self.count = 10
+    self._run = False
 
-  def run(self):
+  def blink(self, count=-1):
+    if self.running:
+      print "bl: error already running"
     self.running = True
-    dm = map(self.mag, 0, -6, 4, 255)
-    if (dm>255): dm = 255
-    if (dm<0): dm = 4
-    da = map(self.alt, 0, 90, 500, 50)
-#    print "bl mag: {:3.1f} alt: {:3.1f} dm:{:3.0f} da:{:3.0f}".format(self.mag,self.alt,dm,da)
     repeat=1
     steps = 10
-    self.bstick.pulse(dm,0,0,None,None,repeat,da,steps)
-    self.bstick.pulse(0,dm,0,None,None,repeat,da,steps)
-    self.bstick.pulse(0,0,dm,None,None,repeat,da,steps)
+    if count>0:
+      self.count = count
+#    print "blink {}".format(self.count)
+    while self._run and self.count>0:
+      dm = map(self.mag, 0, -6, 4, 255)
+      if (dm>255): dm = 255
+      if (dm<0): dm = 4
+      da = map(self.alt, 0, 90, 500, 33)
+#      print "bl mag: {:3.1f} alt: {:3.1f} dm:{:3.0f} da:{:3.0f}".format(self.mag,self.alt,dm,da)
+      self.bstick.pulse(dm,0,0,None,None,repeat,da,steps)
+      self.bstick.pulse(0,dm,0,None,None,repeat,da,steps)
+      self.bstick.pulse(0,0,dm,None,None,repeat,da,steps)
+      self.count -= 1
     self.bstick.turn_off()
     self.running = False
-#    print "bl: done"
+#    print "bl: stop"
+
+  def set(self, mag, alt, count=1):
+    self.alt = alt
+    self.mag = mag
+    self.count = count
+
+  def start(self):
+    if self.running == False:
+#      print "bl: start thread"
+      self._run = True
+      self.thread = threading.Thread(target = self.blink)
+      self.thread.start()
+
+  def stop(self):
+    self._run = False # stop loop
+    while self.running :
+      sleep(0.1)
 
 # ---------------------------------------------------------------------
 
@@ -195,18 +227,28 @@ screen.blit(bg, bgRect)
 pygame.display.update()
 sleep(1)
 
-def getxy(alt, az):
-    altR = 1.57-alt
-    aziR = az-1.57
-    x = 160 - int(120 * math.sin(altR) * math.cos(aziR))
-    y = 120 + int(120 * math.sin(altR) * math.sin(aziR)) 
+def getxy(alt, azi): # alt, az in radians
+# thanks to John at Wobbleworks for the algorithm
+    r90 = math.radians(90) # 90 degrees in radians
+    r = (r90 - alt)/r90
+    x = r * math.sin(azi)
+    y = r * math.cos(azi)
+    x = int(160 - x * 120) # flip E/W, scale to radius, center on plot
+    y = int(120 - y * 120) # scale to radius, center on plot
     return (x,y)
 
-def plotstar(name, bg, obs):
+def plotstar(name, screen, obs):
     star = ephem.star(name)
     star.compute(obs)
     if star.alt > 0:
-      pygame.draw.circle(bg, (255,255,255), getxy(star.alt, star.az), 1, 1)
+      pygame.draw.circle(screen, (255,255,255), getxy(star.alt, star.az), 1, 1)
+
+def plotplanet( planet, obs, screen, color, size):
+#    planet = ephem.Mercury()
+    planet.compute(obs)
+#    print "{} alt: {} az:{}".format(planet.name, math.degrees(planet.alt), math.degrees(planet.az))
+    if (planet.alt>0):
+      pygame.draw.circle(screen, color, getxy(planet.alt, planet.az), size, 0)
 
 
 def setupInfo():
@@ -218,7 +260,7 @@ def setupInfo():
     txtColor = (255,0,0)
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
     txt = txtFont.render("ISS Tracker" , 1, txtColor)
-    bg.blit(txt, (20, line0))
+    bg.blit(txt, (15, line0))
 
     txtColor = (255,63,0)
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
@@ -281,7 +323,45 @@ def showInfo(tNow, issp, obs, iss, sun):
     screen.blit(txt, (col2, line6))
 
     pygame.display.flip()
-    
+
+
+def plotSky(screen, obs, sun):
+
+    if (sun.alt>0):
+      pygame.draw.circle(screen, (255,255,0), getxy(sun.alt, sun.az), 5, 0)
+    moon = ephem.Moon()
+    moon.compute(obs)
+    if (moon.alt>0):
+      pygame.draw.circle(screen, (255,255,255), getxy(moon.alt, moon.az), 5, 0)
+
+#    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
+#      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
+#      'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
+#      'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
+#      'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
+#      'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
+#      'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
+#      'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
+#      'Merope','Arkab Posterior','Taygeta']
+      
+    for star in ephem.stars.db.split("\n"):
+        name = star.split(',')[0]
+        if len(name)>0:
+            plotstar(name, screen, obs)
+
+# plot 5 circles to test plot
+#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(90), math.radians(0)), 5, 1) # center
+#    pygame.draw.circle(screen, (255,0,0), getxy(math.radians(45), math.radians(0)), 5, 1) # red N
+#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(45), math.radians(90)), 5, 1) # green E
+#    pygame.draw.circle(screen, (0,0,255), getxy(math.radians(45), math.radians(180)), 5, 1) # blue S
+#    pygame.draw.circle(screen, (255,255,0), getxy(math.radians(45), math.radians(270)), 5, 1) # yellow W
+
+#def plotplanet(planet, obs, screen, color, size):
+    plotplanet(ephem.Mercury(), obs, screen, (128,255,255), 3)
+    plotplanet(ephem.Venus(), obs, screen, (255,255,255), 4)
+    plotplanet(ephem.Mars(), obs, screen, (255,0,0), 3)
+    plotplanet(ephem.Jupiter(), obs, screen, (255,255,128), 4)
+
 
 def setupPass(tNow, tr, ts, obs, iss, sun):
     global bg, issImg, issRect
@@ -316,35 +396,6 @@ def setupPass(tNow, tr, ts, obs, iss, sun):
     pygame.draw.circle(bg, bgcolor, (160,120), 120, 0)
     pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
 
-    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
-      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
-      'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
-      'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
-      'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
-      'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
-      'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
-      'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
-      'Merope','Arkab Posterior','Taygeta']
-      
-    for star in stars:
-        plotstar(star, bg, obs)
-
-    venus = ephem.Venus()
-    venus.compute(obs)
-#    print "venus alt {}".format(math.degrees(venus.alt))
-    if (venus.alt>0):
-      pygame.draw.circle(screen, (255,255,255), getxy(venus.alt, venus.az), 3, 0)
-    mars = ephem.Mars()
-    mars.compute(obs)
-#    print "mars alt {}".format(math.degrees(mars.alt))
-    if (mars.alt>0):
-      pygame.draw.circle(screen, (255,0,0), getxy(mars.alt, mars.az), 3, 0)
-    jupiter = ephem.Jupiter()
-    jupiter.compute(obs)
-#    print "jupiter alt {}".format(math.degrees(jupiter.alt))
-    if (jupiter.alt>0):
-      pygame.draw.circle(screen, (255,255,128), getxy(jupiter.alt, jupiter.az), 3, 0)
-
     if issp.daytimepass:
         viscolor = (255,255,0) # yellow
     else:
@@ -378,9 +429,8 @@ def showPass(tNow, ts, obs, iss, sun):
     issaz = math.degrees(iss.az)
 
     if blinkstick_on:
-      if blt.running == False:
-        blt = BlinkThread(vmag, issalt)
-        blt.start()
+      blt.set(vmag, issalt, 10)
+      blt.start()
 
     t1 = ephem.localtime(obs.date).strftime("%T")
     t1 = txtFont.render(t1, 1, txtColor)
@@ -403,12 +453,7 @@ def showPass(tNow, ts, obs, iss, sun):
 
     screen.blit(bg, bgRect)
 
-    if (sun.alt>0):
-      pygame.draw.circle(screen, (255,255,0), getxy(sun.alt, sun.az), 5, 0)
-    moon = ephem.Moon()
-    moon.compute(obs)
-    if (moon.alt>0):
-      pygame.draw.circle(screen, (255,255,255), getxy(moon.alt, moon.az), 5, 0)
+    plotSky(screen, obs, sun)
 
     screen.blit(t1, (0, 0))
     rect = t2.get_rect()
@@ -433,6 +478,8 @@ def showPass(tNow, ts, obs, iss, sun):
 shown = False
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGHUP, signal_handler)
+signal.signal(signal.SIGQUIT, signal_handler)
 print "sigterm handler set"
 logging.basicConfig(filename='/home/pi/isstracker/isstracker.log',filemode='w',level=logging.DEBUG)
 logging.info("ISS-Tracker System Startup")
@@ -440,25 +487,15 @@ logging.info("ISS-Tracker System Startup")
 #    if opt.blinkstick:
 if True:
     blinkstick_on = True
-
-    blt = BlinkThread(0, 60)
+    blt = BlinkStick(-3, 90, 10)
     blt.start()
-    while blt.running:
-      pass
     sleep(1)
+    blt.stop()
 
-    blt = BlinkThread(-3, 90)
-    blt.start()
-    while blt.running:
-      pass
-    sleep(1)
-
-    blt = BlinkThread(1, 45)
-    blt.start()
-    while blt.running:
-      pass
-    sleep(1)
-
+#    blt.set(0, 45, 10)
+#    blt.start()
+#    sleep(1)
+#    blt.stop()
 
 while(True):
 
@@ -502,15 +539,20 @@ while(True):
 
     # show the pass
     while ephem.localtime(ts) > ephem.localtime(obs.date) :
+        t1 = datetime.now()
         if (realTime):
           tNow = datetime.utcnow()
         else:
           tNow = tNow + timedelta(seconds=1)
         obs.date = tNow # update observer time
         iss.compute(obs) # compute new position
+        sun = ephem.Sun(obs) # recompute the sun
         showPass(tNow, ts, obs, iss, sun)
-        sleep(stime)
+        dt = (datetime.now()-t1).total_seconds()
+        if (dt<stime):
+            sleep(stime-dt)
 
+    blt.stop()
     # after 1 demo, switch to real time
     stime = 1
     realTime = True
