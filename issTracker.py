@@ -111,6 +111,12 @@ def backlight(set):
 #        gpio.digitalWrite(backlightpin,gpio.HIGH)
         os.system("echo '0' > /sys/class/gpio/gpio252/value")
 
+def Shutdown():
+    command = "/usr/bin/sudo /sbin/shutdown -f now"
+    import subprocess
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+    output = process.communicate()[0]
+    print output
 
 # ---------------------------------------------------------------------
 
@@ -123,7 +129,6 @@ os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 # pages
 #pages = enum(Demo=0,Auto=1,Info=2,Sky=3,Menu=10,Location=11,GPS=12,TLE=13)
 pages = enum(Demo=0,Auto=1,Sky=2,Globe=3,Menu=10,Location=11,GPS=12,TLE=13)
-page = pages.Demo
 
 # Set up GPIO pins
 print "Init GPIO pins..."
@@ -171,7 +176,8 @@ def plotstar(name, screen, obs):
     if star.alt > 0:
       pygame.draw.circle(screen, (255,255,255), getxy(star.alt, star.az), 1, 1)
 
-def plotplanet( planet, obs, screen, pline, pFont, color, size):
+def plotplanet( planet, obs, screen, pFont, color, size):
+    global pline
 #    planet = ephem.Mercury()
     planet.compute(obs)
 #    print "{} alt: {} az:{}".format(planet.name, math.degrees(planet.alt), math.degrees(planet.az))
@@ -224,11 +230,11 @@ def plotSky(screen, obs, sun):
       pline += 15
 
 #def plotplanet(planet, obs, screen, color, size):
-    plotplanet(ephem.Mercury(), obs, screen, pline, pFont, (128,255,255), 3)
-    plotplanet(ephem.Venus(), obs, screen, pline, pFont, (255,255,255), 3)
-    plotplanet(ephem.Mars(), obs, screen, pline, pFont, (255,0,0), 3)
-    plotplanet(ephem.Jupiter(), obs, screen, pline, pFont, (255,255,128), 3)
-    plotplanet(ephem.Saturn(), obs, screen, pline, pFont, (255,128,255), 3)
+    plotplanet(ephem.Mercury(), obs, screen, pFont, (128,255,255), 3)
+    plotplanet(ephem.Venus(), obs, screen, pFont, (255,255,255), 3)
+    plotplanet(ephem.Mars(), obs, screen, pFont, (255,0,0), 3)
+    plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
+    plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
 
 # ---------------------------------------------------------------------
 
@@ -443,53 +449,12 @@ def showSky(tNow, issp, obs, iss, sun):
 
 #  ----------------------------------------------------------------
 
-def showMenu():
-    global page
-
-    menu = pygame.image.load("ISSTrackerDim.png")
-    menuRect = menu.get_rect()
-
-    txtColor = (255,255,0)
-    txtFont = pygame.font.SysFont("Arial", 20, bold=True)
-    txt = txtFont.render('Demo' , 1, txtColor)
-    menu.blit(txt, (140, 20))
-
-
-#  ----------------------------------------------------------------
-
-def checkEvent():
-    global page
-#    ev = pygame.event.poll()
-    ret = False
-    evl = pygame.event.get()
-    for ev in evl:
-        if (ev.type == pygame.NOEVENT):
-            print 'NOEVENT' # ???
-            pass
-#    print "ev: {}".format(ev)
-        if (ev.type == pygame.MOUSEBUTTONDOWN):
-          print "mouse dn, x,y = {}".format(ev.pos)
-        if (ev.type == pygame.MOUSEBUTTONUP):
-          print "mouse up, x,y = {}".format(ev.pos)
-          x,y = ev.pos
-          if x <= 160: # left side
-            page -= 1
-            if page < 0: page = 2
-          else:
-            page += 1
-            if page == 3:  page = 0  # wrap (temp)
-          print "page {}".format(page)
-          ret = True
-    return ret
-
-#  ----------------------------------------------------------------
-
 def pageAuto():
   global page
   stime = 1
   print 'Auto'
   while (page == pages.Auto):
-    if checkEvent(): break
+    if checkEvent(): return
 
     tNow = datetime.utcnow()
     obs.date = tNow
@@ -510,7 +475,7 @@ def pageAuto():
             sun = ephem.Sun(obs) # recompute the sun
             showInfo(tNow, issp, obs, iss, sun)
             while (datetime.now()-t1).total_seconds() < stime:
-                if checkEvent(): break
+                if checkEvent(): return
                 sleep(0.1)
 # ISS is up now! Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
@@ -524,7 +489,7 @@ def pageAuto():
         sun = ephem.Sun(obs) # recompute the sun
         showSky(tNow, issp, obs, iss, sun)
         while (datetime.now()-t1).total_seconds() < stime:
-            if checkEvent(): break
+            if checkEvent(): return
             sleep(0.1)
     BLST.stop() # stop blinking
   print 'end Auto'
@@ -547,7 +512,7 @@ def pageDemo():
 #  tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 
   while (page == pages.Demo):
-    if checkEvent(): break
+    if checkEvent(): return
 
     obs.date = tNow
     sun = ephem.Sun(obs)
@@ -566,9 +531,9 @@ def pageDemo():
             obs.date = tNow
             sun = ephem.Sun(obs) # recompute the sun
             showInfo(tNow, issp, obs, iss, sun)
-            if checkEvent(): break
+            if checkEvent(): return
             while (datetime.now()-t1).total_seconds() < stime:
-                if checkEvent(): break
+                if checkEvent(): return
                 sleep(0.1)
 
 # ISS is up now! Display the Pass screen with the track, then show it's position in real time
@@ -582,9 +547,9 @@ def pageDemo():
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
         showSky(tNow, issp, obs, iss, sun)
-        if checkEvent(): break
+        if checkEvent(): return
         while (datetime.now()-t1).total_seconds() < stime:
-            if checkEvent(): break
+            if checkEvent(): return
             sleep(0.1)
     BLST.stop() # stop blinking
 
@@ -628,6 +593,85 @@ def pageSky():
     BLST.stop() # stop blinking
   print 'end Sky'
 
+#  ----------------------------------------------------------------
+
+def pageMenu():
+    global page
+    global bAuto, bDemo, bSky, bExit, bShutdown
+
+#    menu = pygame.image.load("ISSTrackerDim.png")
+    menu = pygame.Surface((160,220))
+    menuRect = menu.get_rect()
+#    menuRect.left = 40
+#    menuRect.top = 20
+
+    txtColor = (255,255,0)
+    txtFont = pygame.font.SysFont("Arial", 24, bold=True)
+
+    txtAuto = txtFont.render('Auto' , 1, txtColor)
+    bAuto = menu.blit(txtAuto, (20, 10))
+    txtDemo = txtFont.render('Demo' , 1, txtColor)
+    bDemo = menu.blit(txtDemo, (20, 50))
+    txtSky  = txtFont.render('Sky' , 1, txtColor)
+    bSky = menu.blit(txtSky , (20, 90))
+    txtExit  = txtFont.render('Exit' , 1, txtColor)
+    bExit = menu.blit(txtExit, (20, 130))
+
+    txtColor = (255,0,0)
+    txtShut  = txtFont.render('Shutdown' , 1, txtColor)
+    bShutdown = menu.blit(txtShut, (20, 180))
+
+    screen.blit(menu, menuRect)
+    pygame.display.update()
+
+    while page == pages.Menu:
+        if checkEvent(): break
+
+#  ----------------------------------------------------------------
+
+def checkEvent():
+    global page
+    global bAuto, bDemo, bSky, bExit, bShutdown
+#    ev = pygame.event.poll()
+    ret = False
+    evl = pygame.event.get()
+    for ev in evl:
+        if (ev.type == pygame.NOEVENT):
+            print 'NOEVENT' # ???
+            pass
+#    print "ev: {}".format(ev)
+        if (ev.type == pygame.MOUSEBUTTONDOWN):
+          print "mouse dn, x,y = {}".format(ev.pos)
+        if (ev.type == pygame.MOUSEBUTTONUP):
+          print "mouse up, x,y = {}".format(ev.pos)
+
+#          print "page {}".format(page)
+          if page < pages.Menu:
+              page = pages.Menu
+              ret = True
+          else:
+              x,y = ev.pos
+#              print "check xy {},{}".format(x,y)
+              if bAuto.collidepoint((x,y)):
+                page = pages.Auto
+              if bDemo.collidepoint(x,y):
+                page = pages.Demo
+                ret = True
+              if bSky.collidepoint(x,y):
+                page = pages.Sky
+                ret = True
+              if bExit.collidepoint(x,y):
+                 pygame.quit()
+                 sys.exit(0)
+              if bShutdown.collidepoint(x,y):
+#                page = pages.Sky
+#                ret = True # just redraw current screen
+                 Shutdown()
+
+          print "page {}".format(page)
+
+    return ret
+
 
 #  ----------------------------------------------------------------
 
@@ -647,19 +691,16 @@ if True:
     sleep(2)
     BLST.stop()
 
-#    BLST.set(0, 45, 10)
-#    BLST.start()
-#    sleep(1)
-#    BLST.stop()
+page = pages.Auto
 
 while(True):
 
     if page == pages.Demo:
         pageDemo()
-#    elif page == pages.Info:
-#        pageInfo()
     elif page == pages.Sky:
         pageSky()
+    elif page == pages.Menu:
+        pageMenu()
     else:
         pageAuto()
 
