@@ -14,7 +14,7 @@ class BlinkStick():
     self.bstick = blinkstick.find_first()
     self.running = False
     self.thread = 0
-    self.count = 10
+    self.count = count
     self._run = False
     self.lock = threading.Lock()
 
@@ -29,7 +29,7 @@ class BlinkStick():
     repeat=1
     steps = 10
     count = self.count # + 0 # make a copy
-#    print "blink {}".format(self.count)
+#    print "blink {}".format(count)
     while self._run and count>0:
       dm = map(self.mag, 0, -6, 4, 255)
       if (dm>255): dm = 255

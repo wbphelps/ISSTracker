@@ -12,11 +12,13 @@
 # (c) Copyright 2014 William B. Phelps
 
 import wiringpi2
-import atexit
+#import atexit
 import errno
 import os, sys, signal
+
 import pygame
 from pygame.locals import *
+
 from time import sleep
 from datetime import datetime, timedelta
 import ephem, ephem.stars
@@ -28,7 +30,7 @@ import logging
 from issTLE import issTLE
 from issBlinkStick import BlinkStick
 
-atexit.register(exit)
+#atexit.register(exit)
 
 # -------------------------------------------------------------
 
@@ -47,30 +49,12 @@ line4 = line3+lsize
 line5 = line4+lsize
 line6 = line5+lsize
 
-#iss = { "Type": 'Daytime', "Mag": -3.2, "Range": 1234, "Time": datetime.now()+timedelta(seconds=300) }
-
+# set up observer location
 obs = ephem.Observer()
 obs.lat = '37.4388'
 obs.lon = '-122.124'
 
-realTime = True
-realTime = False
-stime = 1
-#stime = 0.5  # 2x normal speed
-#stime = 0.2 # 5x speed
-stime = 0.1 # 10x speed
-
 tNow = datetime.utcnow()
-tNow = datetime(2014, 2, 6, 3, 3, 0) # 1 minute before ISS is due
-#tNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
-#tNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
-#tNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
-#tNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
-#tNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
-#tNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
-#tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
-#tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
-
 obs.date = tNow
 sun = ephem.Sun(obs)
 
@@ -94,22 +78,15 @@ if (datetime.now()-tle.date) > timedelta(days=1):
     tle.fetch()
     tle.save()
 
-
 iss = ephem.readtle(tle.tle[0], tle.tle[1], tle.tle[2] )
 iss.compute(obs)
 print obs.next_pass(iss)
 
-#print "alt: {}".format(math.degrees(iss.alt))
-#print "azi: {}".format(math.degrees(iss.az))
-
-#obs.date = datetime(2014, 2, 13, 0, 36, 30) # 1 minute later
-#obs.date = tNow + timedelta(seconds=30)
-#iss.compute(obs)
-#print "alt: {}".format(math.degrees(iss.alt))
-#print "azi: {}".format(math.degrees(iss.az))
-
-
 # ---------------------------------------------------------------
+
+def enum(**enums):
+    return type('Enum', (), enums)
+
 def signal_handler(signal, frame):
     global blinkstick_on, BLST
     print 'SIGNAL {}'.format(signal)
@@ -119,10 +96,10 @@ def signal_handler(signal, frame):
       BLST.stop()
     sys.exit(0)
 
-def exit():
-  print "Exit"
-  sleep(1)
-  pygame.quit()
+#def exit():
+#  print "Exit"
+##  sleep(1)
+#  pygame.quit()
 
 def backlight(set):
     os.system("echo 252 > /sys/class/gpio/export")
@@ -143,6 +120,10 @@ os.putenv('SDL_FBDEV'      , '/dev/fb1')
 os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
 os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
+# pages
+#pages = enum(Demo=0,Auto=1,Info=2,Sky=3,Menu=10,Location=11,GPS=12,TLE=13)
+pages = enum(Demo=0,Auto=1,Sky=2,Globe=3,Menu=10,Location=11,GPS=12,TLE=13)
+page = pages.Demo
 
 # Set up GPIO pins
 print "Init GPIO pins..."
@@ -190,13 +171,66 @@ def plotstar(name, screen, obs):
     if star.alt > 0:
       pygame.draw.circle(screen, (255,255,255), getxy(star.alt, star.az), 1, 1)
 
-def plotplanet( planet, obs, screen, color, size):
+def plotplanet( planet, obs, screen, pline, pFont, color, size):
 #    planet = ephem.Mercury()
     planet.compute(obs)
 #    print "{} alt: {} az:{}".format(planet.name, math.degrees(planet.alt), math.degrees(planet.az))
     if (planet.alt>0):
+#      pFont = pygame.font.SysFont('Arial', 15, bold=True)
+      txt = pFont.render(planet.name, 1, color)
+      screen.blit(txt, (1,pline))
+      pline += 15
       pygame.draw.circle(screen, color, getxy(planet.alt, planet.az), size, 0)
 
+def plotSky(screen, obs, sun):
+
+    global pline
+    pline = 24
+    pFont = pygame.font.SysFont('Arial', 15, bold=True)
+
+#    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
+#      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
+#      'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
+#      'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
+#      'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
+#      'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
+#      'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
+#      'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
+#      'Merope','Arkab Posterior','Taygeta']
+      
+    for star in ephem.stars.db.split("\n"):
+        name = star.split(',')[0]
+        if len(name)>0:
+            plotstar(name, screen, obs)
+
+# plot 5 circles to test plot
+#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(90), math.radians(0)), 5, 1) # center
+#    pygame.draw.circle(screen, (255,0,0), getxy(math.radians(45), math.radians(0)), 5, 1) # red N
+#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(45), math.radians(90)), 5, 1) # green E
+#    pygame.draw.circle(screen, (0,0,255), getxy(math.radians(45), math.radians(180)), 5, 1) # blue S
+#    pygame.draw.circle(screen, (255,255,0), getxy(math.radians(45), math.radians(270)), 5, 1) # yellow W
+
+    if (sun.alt>0):
+      pygame.draw.circle(screen, (255,255,0), getxy(sun.alt, sun.az), 5, 0)
+      txt = pFont.render('Sun', 1, (255,255,0))
+      screen.blit(txt, (1,pline))
+      pline += 15
+    moon = ephem.Moon()
+    moon.compute(obs)
+    if (moon.alt>0):
+      pygame.draw.circle(screen, (255,255,255), getxy(moon.alt, moon.az), 5, 0)
+      txt = pFont.render('Moon', 1, (255,255,255))
+      screen.blit(txt, (1,pline))
+      pline += 15
+
+#def plotplanet(planet, obs, screen, color, size):
+    plotplanet(ephem.Mercury(), obs, screen, pline, pFont, (128,255,255), 3)
+    plotplanet(ephem.Venus(), obs, screen, pline, pFont, (255,255,255), 3)
+    plotplanet(ephem.Mars(), obs, screen, pline, pFont, (255,0,0), 3)
+    plotplanet(ephem.Jupiter(), obs, screen, pline, pFont, (255,255,128), 3)
+    plotplanet(ephem.Saturn(), obs, screen, pline, pFont, (255,128,255), 3)
+
+# ---------------------------------------------------------------------
 
 def setupInfo():
 # Setup fixed parts of screen
@@ -206,7 +240,9 @@ def setupInfo():
 
     txtColor = (255,0,0)
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
-    txt = txtFont.render("ISS Tracker" , 1, txtColor)
+    txt = 'ISS Tracker'
+    if page == pages.Demo: txt = txt + ' (Demo)'
+    txt = txtFont.render(txt , 1, txtColor)
     bg.blit(txt, (15, line0))
 
     txtColor = (255,63,0)
@@ -234,7 +270,7 @@ def showInfo(tNow, issp, obs, iss, sun):
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     screen.blit(bg, bgRect) # write background image
 
-    t1 = ephem.localtime(tr).strftime('%b %d %H:%M:%S')
+    t1 = ephem.localtime(issp.risetime).strftime('%b %d %H:%M:%S')
     txt = txtFont.render(t1 , 1, txtColor)
     screen.blit(txt, (col2, line1))
 
@@ -260,7 +296,7 @@ def showInfo(tNow, issp, obs, iss, sun):
     txt = txtFont.render("{:0.0f} km".format(issp.minrange) , 1, txtColor)
     screen.blit(txt, (col2, line5))
 
-#    time_until_pass= ephem.localtime(tr)-datetime.now()
+#    time_until_pass= ephem.localtime(issp.risetime)-datetime.now()
 #    text='Pass in %s ' % timedelta(seconds=time_until_pass.seconds)
 
     td = issp.risetime - obs.date
@@ -271,46 +307,9 @@ def showInfo(tNow, issp, obs, iss, sun):
 
     pygame.display.flip()
 
+# ---------------------------------------------------------------------
 
-def plotSky(screen, obs, sun):
-
-    if (sun.alt>0):
-      pygame.draw.circle(screen, (255,255,0), getxy(sun.alt, sun.az), 5, 0)
-    moon = ephem.Moon()
-    moon.compute(obs)
-    if (moon.alt>0):
-      pygame.draw.circle(screen, (255,255,255), getxy(moon.alt, moon.az), 5, 0)
-
-#    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
-#      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
-#      'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
-#      'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
-#      'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
-#      'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
-#      'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
-#      'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
-#      'Merope','Arkab Posterior','Taygeta']
-      
-    for star in ephem.stars.db.split("\n"):
-        name = star.split(',')[0]
-        if len(name)>0:
-            plotstar(name, screen, obs)
-
-# plot 5 circles to test plot
-#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(90), math.radians(0)), 5, 1) # center
-#    pygame.draw.circle(screen, (255,0,0), getxy(math.radians(45), math.radians(0)), 5, 1) # red N
-#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(45), math.radians(90)), 5, 1) # green E
-#    pygame.draw.circle(screen, (0,0,255), getxy(math.radians(45), math.radians(180)), 5, 1) # blue S
-#    pygame.draw.circle(screen, (255,255,0), getxy(math.radians(45), math.radians(270)), 5, 1) # yellow W
-
-#def plotplanet(planet, obs, screen, color, size):
-    plotplanet(ephem.Mercury(), obs, screen, (128,255,255), 3)
-    plotplanet(ephem.Venus(), obs, screen, (255,255,255), 4)
-    plotplanet(ephem.Mars(), obs, screen, (255,0,0), 3)
-    plotplanet(ephem.Jupiter(), obs, screen, (255,255,128), 4)
-
-
-def setupPass(tNow, tr, ts, obs, iss, sun):
+def setupSky(tNow, issp, obs, iss, sun):
     global bg, issImg, issRect
 
     bg = pygame.image.load("ISSTrackerDim.png")
@@ -366,7 +365,7 @@ def setupPass(tNow, tr, ts, obs, iss, sun):
 
     pygame.display.update()
 
-def showPass(tNow, ts, obs, iss, sun):
+def showSky(tNow, issp, obs, iss, sun):
     global bg, issImg, issRect, BLST
     txtColor = (255,255,0)
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
@@ -375,16 +374,22 @@ def showPass(tNow, ts, obs, iss, sun):
     issalt = math.degrees(iss.alt)
     issaz = math.degrees(iss.az)
 
-    if blinkstick_on:
+    if blinkstick_on and issalt>0:
       BLST.set(vmag, issalt, 10)
       BLST.start()
 
     t1 = ephem.localtime(obs.date).strftime("%T")
     t1 = txtFont.render(t1, 1, txtColor)
 
-    td = ts - obs.date
-    tds = timedelta(td).total_seconds()
-    t2 = "%02d:%02d" % (tds//60, tds%60)
+    if (issalt>0): # if ISS is up, show the time left before it  will set
+      td = issp.settime - obs.date
+      tds = timedelta(td).total_seconds()
+      t2 = "%02d:%02d" % (tds//60, tds%60)
+    else: # show how long before it will rise
+      td = issp.risetime - obs.date
+      tds = timedelta(td).total_seconds()
+      t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
+
     t2 = txtFont.render(t2, 1, txtColor)
 
     if (vmag<99):
@@ -392,37 +397,240 @@ def showPass(tNow, ts, obs, iss, sun):
     else:
       tmag = " - - -"
     tmag = txtFont.render(tmag, 1, txtColor)
+    if (issp.maxmag>99):
+      txt = '---'
+    else:
+      txt = "{:5.1f}".format(issp.maxmag)
+    tmaxmag = txtFont.render(txt, 1, txtColor)
 
     trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
+    tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
 
     talt = txtFont.render("{:0>3.0f}".format(issalt) , 1, txtColor)
     tazi = txtFont.render("{:0>3.0f}".format(issaz) , 1, txtColor)
+    tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
 
     screen.blit(bg, bgRect)
 
     plotSky(screen, obs, sun)
 
+    screen.blit(tmag, (0,180))
+    screen.blit(talt, (6,200))
+    screen.blit(tazi, (6,220))
+
     screen.blit(t1, (0, 0))
     rect = t2.get_rect()
     screen.blit(t2, (320 - rect.width, 0))
-    screen.blit(tmag, (0, 220))
+    rect = tminrng.get_rect()
+    screen.blit(tminrng, (320 - rect.width, 20))
+    rect = tmaxmag.get_rect()
+    screen.blit(tmaxmag, (320 - rect.width, 40))
+    rect = tmaxalt.get_rect()
+    screen.blit(tmaxalt, (320 - rect.width, 60))
+
     rect = trng.get_rect()
     screen.blit(trng, (320 - rect.width, 220))
-    screen.blit(talt, (6,180))
-    screen.blit(tazi, (6,200))
 
 #    moveISS(iss.alt, iss.az)
-    (issW, issH) = issImg.get_size()
-    (x,y) = getxy(iss.alt,iss.az)
-    issRect.left = x - issW/2
-    issRect.top = y - issH/2
-    screen.blit(issImg, issRect)
+    if (issalt>0):
+      (issW, issH) = issImg.get_size()
+      (x,y) = getxy(iss.alt,iss.az)
+      issRect.left = x - issW/2
+      issRect.top = y - issH/2
+      screen.blit(issImg, issRect)
 
     pygame.display.flip()
 
 #  ----------------------------------------------------------------
 
-shown = False
+def showMenu():
+    global page
+
+    menu = pygame.image.load("ISSTrackerDim.png")
+    menuRect = menu.get_rect()
+
+    txtColor = (255,255,0)
+    txtFont = pygame.font.SysFont("Arial", 20, bold=True)
+    txt = txtFont.render('Demo' , 1, txtColor)
+    menu.blit(txt, (140, 20))
+
+
+#  ----------------------------------------------------------------
+
+def checkEvent():
+    global page
+#    ev = pygame.event.poll()
+    ret = False
+    evl = pygame.event.get()
+    for ev in evl:
+        if (ev.type == pygame.NOEVENT):
+            print 'NOEVENT' # ???
+            pass
+#    print "ev: {}".format(ev)
+        if (ev.type == pygame.MOUSEBUTTONDOWN):
+          print "mouse dn, x,y = {}".format(ev.pos)
+        if (ev.type == pygame.MOUSEBUTTONUP):
+          print "mouse up, x,y = {}".format(ev.pos)
+          x,y = ev.pos
+          if x <= 160: # left side
+            page -= 1
+            if page < 0: page = 2
+          else:
+            page += 1
+            if page == 3:  page = 0  # wrap (temp)
+          print "page {}".format(page)
+          ret = True
+    return ret
+
+#  ----------------------------------------------------------------
+
+def pageAuto():
+  global page
+  stime = 1
+  print 'Auto'
+  while (page == pages.Auto):
+    if checkEvent(): break
+
+    tNow = datetime.utcnow()
+    obs.date = tNow
+    sun = ephem.Sun(obs)
+    iss.compute(obs)
+
+    issp = ISSPass( iss, obs, sun ) # find next ISS pass
+    obs.date = tNow # reset date/time after ISSPass runs
+
+# if ISS is not up, display the Info screen and wait for it to rise
+    if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
+        setupInfo() # set up Info display
+    # wait for ISS to rise
+        while page == pages.Auto and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
+            t1 = datetime.now()
+            tNow = datetime.utcnow()
+            obs.date = tNow
+            sun = ephem.Sun(obs) # recompute the sun
+            showInfo(tNow, issp, obs, iss, sun)
+            while (datetime.now()-t1).total_seconds() < stime:
+                if checkEvent(): break
+                sleep(0.1)
+# ISS is up now! Display the Pass screen with the track, then show it's position in real time
+    iss.compute(obs) # recompute ISS
+    setupSky(tNow, issp, obs, iss, sun) # set up the ISS Pass screen
+    # show the pass
+    while page == pages.Auto and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
+        t1 = datetime.now()
+        tNow = datetime.utcnow()
+        obs.date = tNow # update observer time
+        iss.compute(obs) # compute new position
+        sun = ephem.Sun(obs) # recompute the sun
+        showSky(tNow, issp, obs, iss, sun)
+        while (datetime.now()-t1).total_seconds() < stime:
+            if checkEvent(): break
+            sleep(0.1)
+    BLST.stop() # stop blinking
+  print 'end Auto'
+
+#  ----------------------------------------------------------------
+
+def pageDemo():
+  global page
+  stime = 0.1 # 10x normal speed
+  print 'Demo'
+
+  tNow = datetime(2014, 2, 6, 3, 3, 0) # 1 minute before ISS is due
+#  tNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
+#  tNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
+#  tNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
+#  tNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
+#  tNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
+#  tNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
+#  tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
+#  tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
+
+  while (page == pages.Demo):
+    if checkEvent(): break
+
+    obs.date = tNow
+    sun = ephem.Sun(obs)
+    iss.compute(obs)
+
+    issp = ISSPass( iss, obs, sun ) # find next ISS pass
+    obs.date = tNow # reset date/time after ISSPass runs
+
+# if ISS is not up, display the Info screen and wait for it to rise
+    if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
+        setupInfo() # set up Info display
+    # wait for ISS to rise
+        while page == pages.Demo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
+            t1 = datetime.now()
+            tNow = tNow + timedelta(seconds=1)
+            obs.date = tNow
+            sun = ephem.Sun(obs) # recompute the sun
+            showInfo(tNow, issp, obs, iss, sun)
+            if checkEvent(): break
+            while (datetime.now()-t1).total_seconds() < stime:
+                if checkEvent(): break
+                sleep(0.1)
+
+# ISS is up now! Display the Pass screen with the track, then show it's position in real time
+    iss.compute(obs) # recompute ISS
+    setupSky(tNow, issp, obs, iss, sun) # set up the ISS Pass screen
+    # show the pass
+    while page == pages.Demo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
+        t1 = datetime.now()
+        tNow = tNow + timedelta(seconds=1)
+        obs.date = tNow # update observer time
+        iss.compute(obs) # compute new position
+        sun = ephem.Sun(obs) # recompute the sun
+        showSky(tNow, issp, obs, iss, sun)
+        if checkEvent(): break
+        while (datetime.now()-t1).total_seconds() < stime:
+            if checkEvent(): break
+            sleep(0.1)
+    BLST.stop() # stop blinking
+
+# after one demo, switch to Auto
+    page = pages.Auto
+  
+  print 'end Demo'
+
+#  ----------------------------------------------------------------
+
+def pageSky():
+  global page
+  stime = 1
+  print 'Sky'
+  while (page == pages.Sky):
+    if checkEvent(): break
+
+    tNow = datetime.utcnow()
+    obs.date = tNow
+    sun = ephem.Sun(obs)
+    iss.compute(obs)
+
+# find next ISS pass and compute position of ISS in case it is visible
+    issp = ISSPass( iss, obs, sun ) # find next ISS pass
+    obs.date = tNow # reset date/time after ISSPass runs
+    iss.compute(obs) # recompute ISS
+    setupSky(tNow, issp, obs, iss, sun) # set up the ISS Pass screen
+    # show the sky
+    while page == pages.Sky :
+        t1 = datetime.now()
+        tNow = datetime.utcnow()
+        obs.date = tNow # update observer time
+        iss.compute(obs) # compute new position
+        sun = ephem.Sun(obs) # recompute the sun
+        showSky(tNow, issp, obs, iss, sun)
+        while (datetime.now()-t1).total_seconds() < stime:
+            if checkEvent(): break
+            sleep(0.1)
+# todo: if ISS was up and has set, find next pass
+    print 'ending'
+    BLST.stop() # stop blinking
+  print 'end Sky'
+
+
+#  ----------------------------------------------------------------
+
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGHUP, signal_handler)
@@ -446,66 +654,13 @@ if True:
 
 while(True):
 
-    if (realTime):
-      tNow = datetime.utcnow()
+    if page == pages.Demo:
+        pageDemo()
+#    elif page == pages.Info:
+#        pageInfo()
+    elif page == pages.Sky:
+        pageSky()
     else:
-      tNow = tNow + timedelta(seconds=1)
+        pageAuto()
 
-    obs.date = tNow
-    sun = ephem.Sun(obs)
-#    print "sun: {},{}".format(sun.alt,sun.az)
-    iss.compute(obs)
-
-    issp = ISSPass( iss, obs, sun ) # find next ISS pass
-    tr = issp.risetime # rise time
-    ts = issp.settime # set time
-
-    obs.date = tNow # reset date/time after ISSPass runs
-
-# if ISS is not up, display the Info screen and wait for it to rise
-
-    if ephem.localtime(tr) > ephem.localtime(obs.date) : # if ISS is not up yet
-        setupInfo() # set up Info display
-
-    # wait for ISS to rise
-        while ephem.localtime(tr) > ephem.localtime(obs.date) :
-            t1 = datetime.now()
-            if (realTime):
-              tNow = datetime.utcnow()
-            else:
-              tNow = tNow + timedelta(seconds=1)
-            obs.date = tNow
-            showInfo(tNow, issp, obs, iss, sun)
-            dt = (datetime.now()-t1).total_seconds()
-            if (dt<stime):
-                sleep(stime-dt)
-
-# ISS is up now! Ddisplay the Pass screen with the track, then show it's position in real time
-
-    sun = ephem.Sun(obs) # recompute the sun
-#    print "sun: {},{}".format(sun.alt,sun.az)
-    iss.compute(obs) # recompute ISS
-    setupPass(tNow, tr, ts, obs, iss, sun) # set up the ISS Pass screen
-
-    # show the pass
-    while ephem.localtime(ts) > ephem.localtime(obs.date) :
-        t1 = datetime.now()
-        if (realTime):
-          tNow = datetime.utcnow()
-        else:
-          tNow = tNow + timedelta(seconds=1)
-        obs.date = tNow # update observer time
-        iss.compute(obs) # compute new position
-        sun = ephem.Sun(obs) # recompute the sun
-        showPass(tNow, ts, obs, iss, sun)
-        dt = (datetime.now()-t1).total_seconds()
-        if (dt<stime):
-            sleep(stime-dt)
-
-    BLST.stop()
-    # after 1 demo, switch to real time
-    stime = 1
-    realTime = True
-
-    sleep(stime)
 
