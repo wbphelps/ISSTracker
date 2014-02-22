@@ -1,6 +1,7 @@
 import ConfigParser
 import urllib2
 from datetime import datetime, timedelta
+from checkNet import checkNet
 
 class issTLE:
 
@@ -55,7 +56,14 @@ class issTLE:
     def fetch(self) :  # fetch TLE data from web
 
         try:
-            data = urllib2.urlopen(self.url).read()
+            net = checkNet()
+#            print 'net.up {}'.format(net.up)
+            if not net.up:
+                print "issTLE: No available network"
+                return False
+
+            page = urllib2.urlopen(self.url, None, 30) # 30 second timeout
+            data = page.read()
 
             if (self.type == 'NASA'):
                 i1 = 1
@@ -80,9 +88,11 @@ class issTLE:
             toks = tle[1].split() # split line 2 into tokens
             td = toks[3].split('.')
             self.date = datetime.strptime(td[0],"%y%j") + timedelta(days=float('.'+td[1]))
+            return True
 
         except:
             print "Error"
             self.tle = ('no data', '', '')
             self.date = datetime(1999, 1, 1)
+            return False
 

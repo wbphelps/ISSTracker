@@ -29,6 +29,7 @@ import logging
 #from blinkstick import blinkstick
 from issTLE import issTLE
 from issBlinkStick import BlinkStick
+from checkNet import checkNet
 
 #atexit.register(exit)
 
@@ -71,16 +72,6 @@ sun = ephem.Sun(obs)
 #   '1 25544U 98067A   14047.37128447  .00016717  00000-0  10270-3 0  9021',
 #   '2 25544  51.6475 338.5079 0003760 140.1188 220.0239 15.50386824 32582')
 #date = Feb 16 2014
-
-tle = issTLE()
-tle.load()
-if (datetime.now()-tle.date) > timedelta(days=1):
-    tle.fetch()
-    tle.save()
-
-iss = ephem.readtle(tle.tle[0], tle.tle[1], tle.tle[2] )
-iss.compute(obs)
-print obs.next_pass(iss)
 
 # ---------------------------------------------------------------
 
@@ -675,13 +666,31 @@ def checkEvent():
 
 #  ----------------------------------------------------------------
 
+logging.basicConfig(filename='/home/pi/isstracker/isstracker.log',filemode='w',level=logging.DEBUG)
+logging.info("ISS-Tracker System Startup")
+
+net = checkNet()
+if net.up:
+    logging.info("Network up {}".format(net.interface))
+else:
+    logging.info("Network down")
+
+tle = issTLE()
+tle.load()
+if (datetime.now()-tle.date) > timedelta(days=1): # if TLE data more than 3 days old
+    print 'fetching TLEs'
+    tle.fetch()
+    tle.save()
+
+iss = ephem.readtle(tle.tle[0], tle.tle[1], tle.tle[2] )
+iss.compute(obs)
+print obs.next_pass(iss)
+
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
 print "sigterm handler set"
-logging.basicConfig(filename='/home/pi/isstracker/isstracker.log',filemode='w',level=logging.DEBUG)
-logging.info("ISS-Tracker System Startup")
 
 #    if opt.blinkstick:
 if True:
