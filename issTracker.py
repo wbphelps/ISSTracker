@@ -35,7 +35,6 @@ from checkNet import checkNet
 
 # -------------------------------------------------------------
 
-iconPath = 'icons' # Subdirectory containing UI bitmaps (PNG format)
 backlightpin = 252
 
 col1 = 16
@@ -145,11 +144,19 @@ print "set mode"
 backlight(True)
 print "backlight"
 
-bg = pygame.image.load("ISSTracker.png")
+bg = pygame.image.load("ISSTracker7.png")
 bgRect = bg.get_rect()
+txtColor = (255,255,0)
+txtFont = pygame.font.SysFont("Arial", 30, bold=True)
+txt = txtFont.render('ISS Tracker' , 1, txtColor)
+bg.blit(txt, (15, 28))
+txt = txtFont.render('by' , 1, txtColor)
+bg.blit(txt, (15, 64))
+txt = txtFont.render('William Phelps' , 1, txtColor)
+bg.blit(txt, (15, 100))
 screen.blit(bg, bgRect)
 pygame.display.update()
-sleep(1)
+sleep(3)
 
 def getxy(alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
@@ -233,7 +240,7 @@ def setupInfo():
 # Setup fixed parts of screen
     global bg, bgRect
 
-    bg = pygame.image.load("ISSTrackerDim.png")
+    bg = pygame.image.load("ISSTracker9.png")
 
     txtColor = (255,0,0)
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
@@ -309,7 +316,7 @@ def showInfo(tNow, issp, obs, iss, sun):
 def setupSky(tNow, issp, obs, iss, sun):
     global bg, issImg, issRect
 
-    bg = pygame.image.load("ISSTrackerDim.png")
+    bg = pygame.image.load("ISSTracker7Dim.png")
     bgRect = bg.get_rect()
 
     vis = []
@@ -588,7 +595,7 @@ def pageSky():
 
 def pageMenu():
     global page
-    global bAuto, bDemo, bSky, bExit, bShutdown
+    global menu, menuRect, bAuto, bDemo, bSky, bExit, bShutdown
 
 #    menu = pygame.image.load("ISSTrackerDim.png")
     menu = pygame.Surface((160,220))
@@ -622,7 +629,7 @@ def pageMenu():
 
 def checkEvent():
     global page
-    global bAuto, bDemo, bSky, bExit, bShutdown
+    global menu, menuRect, bAuto, bDemo, bSky, bExit, bShutdown
 #    ev = pygame.event.poll()
     ret = False
     evl = pygame.event.get()
@@ -631,20 +638,38 @@ def checkEvent():
             print 'NOEVENT' # ???
             pass
 #    print "ev: {}".format(ev)
+
         if (ev.type == pygame.MOUSEBUTTONDOWN):
           print "mouse dn, x,y = {}".format(ev.pos)
+          x,y = ev.pos
+          if page >= pages.Menu:
+            if bAuto.collidepoint(x,y):
+              pygame.draw.rect(menu, (0,255,255), bAuto, 1)
+            if bDemo.collidepoint(x,y):
+              pygame.draw.rect(menu, (0,255,255), bDemo, 1)
+            if bSky.collidepoint(x,y):
+              pygame.draw.rect(menu, (0,255,255), bSky, 1)
+            if bExit.collidepoint(x,y):
+              pygame.draw.rect(menu, (0,255,255), bExit, 1)
+            if bShutdown.collidepoint(x,y):
+              pygame.draw.rect(menu, (0,255,255), bShutdown, 1)
+            screen.blit(menu, menuRect)
+            pygame.display.update()
+
+
         if (ev.type == pygame.MOUSEBUTTONUP):
           print "mouse up, x,y = {}".format(ev.pos)
+          x,y = ev.pos
 
 #          print "page {}".format(page)
           if page < pages.Menu:
               page = pages.Menu
               ret = True
           else:
-              x,y = ev.pos
 #              print "check xy {},{}".format(x,y)
-              if bAuto.collidepoint((x,y)):
+              if bAuto.collidepoint(x,y):
                 page = pages.Auto
+                ret = True
               if bDemo.collidepoint(x,y):
                 page = pages.Demo
                 ret = True
