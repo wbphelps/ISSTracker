@@ -118,31 +118,24 @@ os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 # pages
 #pages = enum(Demo=0,Auto=1,Info=2,Sky=3,Menu=10,Location=11,GPS=12,TLE=13)
-pages = enum(Demo=0,Auto=1,Sky=2,Globe=3,Menu=10,Location=11,GPS=12,TLE=13)
+pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,Menu=10,Location=11,GPS=12,TLE=13)
 
 # Set up GPIO pins
-print "Init GPIO pins..."
 gpio = wiringpi2.GPIO(wiringpi2.GPIO.WPI_MODE_GPIO)  
 #gpio.pinMode(backlightpin,gpio.OUTPUT)  
 
 # Init pygame and screen
-print "Initting..."
 pygame.init() 
 
-print "Setting Mouse invisible..."
 pygame.mouse.set_visible(False)
-print "Setting fullscreen..."
 size = pygame.display.list_modes(16)[0] # get screen size
-print "size:"
-print size
+#print "size: {}".format(size)
 
 #screen = pygame.display.set_mode(size, FULLSCREEN, 16)
 screen = pygame.display.set_mode(size)
 (width, height) = size
-print "set mode"
 
 backlight(True)
-print "backlight"
 
 bg = pygame.image.load("ISSTracker7.png")
 bgRect = bg.get_rect()
@@ -459,7 +452,7 @@ def pageAuto():
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
-    issp = ISSPass( iss, obs, sun ) # find next ISS pass
+    issp = ISSPass( iss, obs, sun, 5 ) # get data on next ISS pass
     obs.date = tNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
@@ -516,7 +509,7 @@ def pageDemo():
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
-    issp = ISSPass( iss, obs, sun ) # find next ISS pass
+    issp = ISSPass( iss, obs, sun ) # get data on next ISS pass
     obs.date = tNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
@@ -558,6 +551,83 @@ def pageDemo():
 
 #  ----------------------------------------------------------------
 
+def showPasses(iss, obs, sun):
+
+    scr = pygame.Surface((320,240))
+    scrRect = scr.get_rect()
+
+    txtFont = pygame.font.SysFont('Courier', 16, bold=True)
+    txtColor = (255,255,255)
+
+    txt = txtFont.render('PASS            MAG  ALT  RANGE', 1, txtColor)
+    scr.blit(txt, (0,0))
+
+    count = 0
+    line = 24 # starting line #
+    while count < 8: # show next 8 passes
+      count += 1
+# find next ISS pass and compute position of ISS
+      issp = ISSPass( iss, obs, sun ) # find next ISS pass
+      if issp.daytimepass:
+        txtColor = (192,192,0) # dim yellow
+      else:
+        if issp.visible:
+          txtColor = (255,255,255) # bright white
+        else:
+          txtColor = (0,192,192) # dim cyan
+
+      t1 = ephem.localtime(issp.risetime).strftime('%b %d %H:%M:%S')
+      txt = txtFont.render(t1 , 1, txtColor)
+      txtPos = txt.get_rect(left=0,top=line)
+      scr.blit(txt, txtPos)
+
+      if (issp.maxmag>99):
+        txt = '  ---'
+      else:
+        txt = "{:>5.1f}".format(issp.maxmag)
+      txt = txtFont.render(txt, 1, txtColor)
+      txtPos = txt.get_rect(left=txtPos.left+txtPos.width+4,top=line)
+      scr.blit(txt, txtPos)
+
+      txt = txtFont.render("{:>3.0f}".format(math.degrees(issp.maxalt)), 1, txtColor)
+#      scr.blit(txt, (190, line))
+      txtPos = txt.get_rect(left=txtPos.left+txtPos.width+4,top=line)
+      scr.blit(txt, txtPos)
+
+      txt = txtFont.render("{:>5.0f}Km".format(issp.minrange) , 1, txtColor)
+#      scr.blit(txt, (230, line))
+      txtPos = txt.get_rect(left=txtPos.left+txtPos.width+4,top=line)
+      scr.blit(txt, txtPos)
+
+      line += 24
+
+    screen.blit(scr, scrRect) # write background image
+    pygame.display.update()
+
+
+def pagePasses():
+  global page
+  stime = 1
+  print 'Passes'
+
+  while (page == pages.Passes):
+
+    if checkEvent(): return
+
+    tNow = datetime.utcnow()
+    obs.date = tNow
+    sun = ephem.Sun(obs)
+    iss.compute(obs)
+
+    showPasses(iss, obs, sun)
+
+    while (page == pages.Passes):
+      if checkEvent(): return
+      sleep(0.1)
+
+
+#  ----------------------------------------------------------------
+
 def pageSky():
   global page
   stime = 1
@@ -593,12 +663,20 @@ def pageSky():
 
 #  ----------------------------------------------------------------
 
+def doShutdown():
+    # confirm with a prompt?
+    Shutdown()
+
+#  ----------------------------------------------------------------
+
 def pageMenu():
     global page
-    global menu, menuRect, bAuto, bDemo, bSky, bExit, bShutdown
+    global menu, menuRect, bAuto, bDemo, bPasses, bSky, bExit, bShutdown
 
-#    menu = pygame.image.load("ISSTrackerDim.png")
-    menu = pygame.Surface((160,220))
+#    menuNames   = { 1:'Auto', 2:'Demo', 3:'Sky', 4:'Exit', 5:'Shutdown' }
+#    menuActions = { 1:pageAuto, 2:pageDemo, 3:pageSky, 4:doExit, 5:doShutdown }
+
+    menu = pygame.Surface((160,240))
     menuRect = menu.get_rect()
 #    menuRect.left = 40
 #    menuRect.top = 20
@@ -612,12 +690,14 @@ def pageMenu():
     bDemo = menu.blit(txtDemo, (20, 50))
     txtSky  = txtFont.render('Sky' , 1, txtColor)
     bSky = menu.blit(txtSky , (20, 90))
+    txtPasses  = txtFont.render('Passes' , 1, txtColor)
+    bPasses = menu.blit(txtPasses , (20, 130))
     txtExit  = txtFont.render('Exit' , 1, txtColor)
-    bExit = menu.blit(txtExit, (20, 130))
+    bExit = menu.blit(txtExit, (20, 170))
 
     txtColor = (255,0,0)
     txtShut  = txtFont.render('Shutdown' , 1, txtColor)
-    bShutdown = menu.blit(txtShut, (20, 180))
+    bShutdown = menu.blit(txtShut, (20, 210))
 
     screen.blit(menu, menuRect)
     pygame.display.update()
@@ -640,7 +720,7 @@ def checkEvent():
 #    print "ev: {}".format(ev)
 
         if (ev.type == pygame.MOUSEBUTTONDOWN):
-          print "mouse dn, x,y = {}".format(ev.pos)
+#          print "mouse dn, x,y = {}".format(ev.pos)
           x,y = ev.pos
           if page >= pages.Menu:
             if bAuto.collidepoint(x,y):
@@ -649,6 +729,8 @@ def checkEvent():
               pygame.draw.rect(menu, (0,255,255), bDemo, 1)
             if bSky.collidepoint(x,y):
               pygame.draw.rect(menu, (0,255,255), bSky, 1)
+            if bPasses.collidepoint(x,y):
+              pygame.draw.rect(menu, (0,255,255), bPasses, 1)
             if bExit.collidepoint(x,y):
               pygame.draw.rect(menu, (0,255,255), bExit, 1)
             if bShutdown.collidepoint(x,y):
@@ -658,7 +740,7 @@ def checkEvent():
 
 
         if (ev.type == pygame.MOUSEBUTTONUP):
-          print "mouse up, x,y = {}".format(ev.pos)
+#          print "mouse up, x,y = {}".format(ev.pos)
           x,y = ev.pos
 
 #          print "page {}".format(page)
@@ -676,6 +758,9 @@ def checkEvent():
               if bSky.collidepoint(x,y):
                 page = pages.Sky
                 ret = True
+              if bPasses.collidepoint(x,y):
+                page = pages.Passes
+                ret = True
               if bExit.collidepoint(x,y):
                  pygame.quit()
                  sys.exit(0)
@@ -684,7 +769,7 @@ def checkEvent():
 #                ret = True # just redraw current screen
                  Shutdown()
 
-          print "page {}".format(page)
+#          print "page {}".format(page)
 
     return ret
 
@@ -704,18 +789,19 @@ tle = issTLE()
 tle.load()
 if (datetime.now()-tle.date) > timedelta(days=1): # if TLE data more than 3 days old
     print 'fetching TLEs'
+    logging.info("Fetching updated TLE data")
     tle.fetch()
     tle.save()
 
 iss = ephem.readtle(tle.tle[0], tle.tle[1], tle.tle[2] )
 iss.compute(obs)
-print obs.next_pass(iss)
+#print obs.next_pass(iss)
 
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
-print "sigterm handler set"
+#print "sigterm handler set"
 
 #    if opt.blinkstick:
 if True:
@@ -733,6 +819,8 @@ while(True):
         pageDemo()
     elif page == pages.Sky:
         pageSky()
+    elif page == pages.Passes:
+        pagePasses()
     elif page == pages.Menu:
         pageMenu()
     else:

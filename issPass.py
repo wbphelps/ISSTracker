@@ -38,7 +38,7 @@ def VisualMagnitude(iss, obs, sun):
 class ISSPass:
 # find the next ISS Pass and calc the path
 
-      def __init__(self, iss, obs, sun):
+      def __init__(self, iss, obs, sun, interval = 10):
 
           self.iss = iss
           self.obs = obs
@@ -49,9 +49,9 @@ class ISSPass:
           self.beforesunrise = False
           self.aftersunset = False
           self.alwayseclipsed = True # in this pass is the ISS always eclipsed (in shadow)
-          self.maxalt = 0 #max altitude
-          self.maxmag = 100 #this will hold the highest magnitude
-          self.visible = False  #is this a visible pass
+          self.maxalt = 0 # max altitude
+          self.maxmag = 100 # this will hold the highest magnitude
+          self.visible = False  # is this a visible pass
           self.minrange = 20000  #will hold the closest distance to the observer
 
           self.iss.compute(self.obs)
@@ -59,7 +59,9 @@ class ISSPass:
 #          print "iss alt: {}".format(math.degrees(self.iss.alt))
 
           if (self.iss.alt > 0): # is ISS up now?
-              self.obs.date = ephem.Date(self.obs.date - 30.0 * ephem.minute) # back up 30 minutes
+              # ISS is up now - back up a bit so we can find this pass
+              self.obs.date = ephem.Date(self.obs.date - 30.0 * ephem.minute)
+              self.iss.compute(self.obs) # recompute ISS
 
           xtr, xazr, xtt, xaltt, xts, xazs = self.obs.next_pass(self.iss)
           self.risetime = xtr
@@ -96,6 +98,7 @@ class ISSPass:
           vis = []
           nvis = []
 
+#          print "issPass: interval={}".format(interval)
           while xtr < xts : # get stats on this pass
               if not self.iss.eclipsed  :
                  self.alwayseclipsed = False
@@ -121,7 +124,7 @@ class ISSPass:
                   nvis.append(vis[-1]) # connect the 2 lines
                 nvis.append((self.iss.alt,self.iss.az))
 
-              xtr = ephem.Date(xtr + 10.0 * ephem.second) #wbp check every 10 seconds
+              xtr = ephem.Date(xtr + ephem.second * interval) #wbp check every interval seconds
               self.obs.date = xtr
               self.iss.compute(self.obs)
 
