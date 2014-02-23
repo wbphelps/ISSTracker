@@ -544,7 +544,7 @@ def pageDemo():
             if checkEvent(): return
             sleep(0.1)
 
-# ISS is up now! Display the Pass screen with the track, then show it's position in real time
+# ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
     setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
@@ -554,13 +554,15 @@ def pageDemo():
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
         showSky(utcNow, issp, obs, iss, sun)
-        if checkEvent(): break # don't forget to stop blinking
+        if checkEvent():
+            print 'demo check'
+            break # don't forget to stop blinking
         sleep(0.1)
 
     BLST.stop() # stop blinking
 
 # after one demo, switch to Auto
-    page = pages.Auto
+    if page == pages.Demo: page = pages.Auto # could also be menu...
   
   print 'end Demo'
 
@@ -726,6 +728,7 @@ def pageMenu():
         if checkEvent(): break
 
 #  ----------------------------------------------------------------
+global menu, menuRect, bAuto, bDemo, bSky, bExit, bShutdown
 
 def checkEvent():
     global page
@@ -740,7 +743,7 @@ def checkEvent():
 #    print "ev: {}".format(ev)
 
         if (ev.type == pygame.MOUSEBUTTONDOWN):
-#          print "mouse dn, x,y = {}".format(ev.pos)
+          print "mouse dn, x,y = {}".format(ev.pos)
           x,y = ev.pos
           if page >= pages.Menu:
             if bAuto.collidepoint(x,y):
@@ -760,7 +763,7 @@ def checkEvent():
 
 
         if (ev.type == pygame.MOUSEBUTTONUP):
-#          print "mouse up, x,y = {}".format(ev.pos)
+          print "mouse up, x,y = {}".format(ev.pos)
           x,y = ev.pos
 
 #          print "page {}".format(page)
@@ -789,7 +792,7 @@ def checkEvent():
 #                ret = True # just redraw current screen
                  Shutdown()
 
-#          print "page {}".format(page)
+          print "page {}".format(page)
 
     return ret
 
