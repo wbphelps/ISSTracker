@@ -59,6 +59,14 @@ tNow = datetime.utcnow()
 obs.date = tNow
 sun = ephem.Sun(obs)
 
+Red = pygame.Color('red')
+Green = pygame.Color('green')
+Blue = pygame.Color('blue')
+Yellow = pygame.Color('yellow')
+Cyan = pygame.Color('cyan')
+Magenta = pygame.Color('magenta')
+White = pygame.Color('white')
+
 #iss_tle = ('ISS (ZARYA)', 
 #  '1 25544U 98067A   14043.40180105  .00016203  00000-0  28859-3 0  6670',
 #  '2 25544  51.6503 358.1745 0004087 127.2033  23.9319 15.50263757871961')
@@ -142,7 +150,7 @@ backlight(True)
 
 bg = pygame.image.load("ISSTracker7.png")
 bgRect = bg.get_rect()
-txtColor = (255,255,0)
+txtColor = Yellow
 txtFont = pygame.font.SysFont("Arial", 30, bold=True)
 txt = txtFont.render('ISS Tracker' , 1, txtColor)
 bg.blit(txt, (15, 28))
@@ -168,7 +176,7 @@ def plotstar(name, screen, obs):
     star = ephem.star(name)
     star.compute(obs)
     if star.alt > 0:
-      pygame.draw.circle(screen, (255,255,255), getxy(star.alt, star.az), 1, 1)
+      pygame.draw.circle(screen, White, getxy(star.alt, star.az), 1, 1)
 
 def plotplanet( planet, obs, screen, pFont, color, size):
     global pline
@@ -211,22 +219,22 @@ def plotSky(screen, obs, sun):
 #    pygame.draw.circle(screen, (255,255,0), getxy(math.radians(45), math.radians(270)), 5, 1) # yellow W
 
     if (sun.alt>0):
-      pygame.draw.circle(screen, (255,255,0), getxy(sun.alt, sun.az), 5, 0)
-      txt = pFont.render('Sun', 1, (255,255,0))
+      pygame.draw.circle(screen, Yellow, getxy(sun.alt, sun.az), 5, 0)
+      txt = pFont.render('Sun', 1, Yellow)
       screen.blit(txt, (1,pline))
       pline += 15
     moon = ephem.Moon()
     moon.compute(obs)
     if (moon.alt>0):
-      pygame.draw.circle(screen, (255,255,255), getxy(moon.alt, moon.az), 5, 0)
-      txt = pFont.render('Moon', 1, (255,255,255))
+      pygame.draw.circle(screen, White, getxy(moon.alt, moon.az), 5, 0)
+      txt = pFont.render('Moon', 1, White)
       screen.blit(txt, (1,pline))
       pline += 15
 
 #def plotplanet(planet, obs, screen, color, size):
     plotplanet(ephem.Mercury(), obs, screen, pFont, (128,255,255), 3)
-    plotplanet(ephem.Venus(), obs, screen, pFont, (255,255,255), 3)
-    plotplanet(ephem.Mars(), obs, screen, pFont, (255,0,0), 3)
+    plotplanet(ephem.Venus(), obs, screen, pFont, White, 3)
+    plotplanet(ephem.Mars(), obs, screen, pFont, Red, 3)
     plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
     plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
 
@@ -238,14 +246,14 @@ def setupInfo():
 
     bg = pygame.image.load("ISSTracker9.png")
 
-    txtColor = (255,0,0)
+    txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
     txt = 'ISS Tracker'
 #    if page == pages.Demo: txt = txt + ' (Demo)'
     txt = txtFont.render(txt , 1, txtColor)
     bg.blit(txt, (15, line0))
 
-    txtColor = (255,63,0)
+    txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     txt = txtFont.render("Start: " , 1, txtColor)
     bg.blit(txt, (col1, line1))
@@ -266,7 +274,7 @@ def setupInfo():
 def showInfo(utcNow, issp, obs, iss, sun):
     global bg, bgRect
 
-    txtColor = (255,0,0)
+    txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     screen.blit(bg, bgRect) # write background image
 
@@ -350,13 +358,13 @@ def setupSky(issp, obs, iss, sun):
     pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
 
     if issp.daytimepass:
-        viscolor = (255,255,0) # yellow
+        viscolor = Yellow # yellow
     else:
-        viscolor = (255,255,255) # white
+        viscolor = White # white
     if (len(nvis)>0):  pygame.draw.lines(bg, (0,127,255), False, nvis, 1)
     if (len(vis)>0):  pygame.draw.lines(bg, viscolor, False, vis, 1)
 
-    txtColor = (0,255,255)
+    txtColor = Cyan
     txtFont = pygame.font.SysFont("Arial", 14, bold=True)
     txt = txtFont.render("N" , 1, txtColor)
     bg.blit(txt, (155, 0))
@@ -375,7 +383,7 @@ def setupSky(issp, obs, iss, sun):
 def showSky(utcNow, issp, obs, iss, sun):
     global bg, issImg, issRect, BLST
 
-    txtColor = (255,255,0)
+    txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
 
     vmag=VisualMagnitude( iss, obs, sun)
@@ -512,7 +520,7 @@ def pageDemo():
   stime = 0.1 # 10x normal speed
   print 'Demo'
 
-  utcNow = datetime(2014, 2, 6, 3, 3, 0) # 1 minute before ISS is due
+  utcNow = datetime(2014, 2, 6, 3, 3, 30) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
 #  utcNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
@@ -555,7 +563,6 @@ def pageDemo():
         sun = ephem.Sun(obs) # recompute the sun
         showSky(utcNow, issp, obs, iss, sun)
         if checkEvent():
-            print 'demo check'
             break # don't forget to stop blinking
         sleep(0.1)
 
@@ -574,14 +581,14 @@ def showPasses(iss, obs, sun):
     scrRect = scr.get_rect()
 
     txtFont = pygame.font.SysFont('Courier', 16, bold=True)
-    txtColor = (255,255,255)
+    txtColor = White
 
-    txt = txtFont.render('PASS            MAG  ALT  RANGE', 1, txtColor)
+    txt = txtFont.render('PASS START      MAG  ALT  RANGE', 1, txtColor)
     scr.blit(txt, (0,0))
 
     count = 0
     line = 24 # starting line #
-    while count < 8: # show next 8 passes
+    while count < 9: # show next 9 passes
       count += 1
 # find next ISS pass and compute position of ISS
       issp = ISSPass( iss, obs, sun ) # find next ISS pass
@@ -589,7 +596,7 @@ def showPasses(iss, obs, sun):
         txtColor = (192,192,0) # dim yellow
       else:
         if issp.visible:
-          txtColor = (255,255,255) # bright white
+          txtColor = White # bright white
         else:
           txtColor = (0,192,192) # dim cyan
 
@@ -616,10 +623,14 @@ def showPasses(iss, obs, sun):
       txtPos = txt.get_rect(left=txtPos.left+txtPos.width+4,top=line)
       scr.blit(txt, txtPos)
 
+      screen.blit(scr, scrRect) # write background image
+      pygame.display.update()
+
+      obs.date = ephem.Date(issp.settime + ephem.minute * 30) # start search a little after this pass
       line += 24
 
-    screen.blit(scr, scrRect) # write background image
-    pygame.display.update()
+#    screen.blit(scr, scrRect) # write background image
+#    pygame.display.update()
 
 
 def pagePasses():
@@ -638,7 +649,7 @@ def pagePasses():
 
     showPasses(iss, obs, sun)
 
-    while (page == pages.Passes):
+    while (page == pages.Passes): # wait for a menu selection
       if checkEvent(): return
       sleep(0.1)
 
@@ -703,7 +714,7 @@ def pageMenu():
 #    menuRect.left = 40
 #    menuRect.top = 20
 
-    txtColor = (255,255,0)
+    txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
 
     txtAuto = txtFont.render('Auto' , 1, txtColor)
@@ -717,7 +728,7 @@ def pageMenu():
     txtExit  = txtFont.render('Exit' , 1, txtColor)
     bExit = menu.blit(txtExit, (20, 170))
 
-    txtColor = (255,0,0)
+    txtColor = Red
     txtShut  = txtFont.render('Shutdown' , 1, txtColor)
     bShutdown = menu.blit(txtShut, (20, 210))
 
@@ -743,27 +754,27 @@ def checkEvent():
 #    print "ev: {}".format(ev)
 
         if (ev.type == pygame.MOUSEBUTTONDOWN):
-          print "mouse dn, x,y = {}".format(ev.pos)
+#          print "mouse dn, x,y = {}".format(ev.pos)
           x,y = ev.pos
           if page >= pages.Menu:
             if bAuto.collidepoint(x,y):
-              pygame.draw.rect(menu, (0,255,255), bAuto, 1)
+              pygame.draw.rect(menu, Cyan, bAuto, 1)
             if bDemo.collidepoint(x,y):
-              pygame.draw.rect(menu, (0,255,255), bDemo, 1)
+              pygame.draw.rect(menu, Cyan, bDemo, 1)
             if bSky.collidepoint(x,y):
-              pygame.draw.rect(menu, (0,255,255), bSky, 1)
+              pygame.draw.rect(menu, Cyan, bSky, 1)
             if bPasses.collidepoint(x,y):
-              pygame.draw.rect(menu, (0,255,255), bPasses, 1)
+              pygame.draw.rect(menu, Cyan, bPasses, 1)
             if bExit.collidepoint(x,y):
-              pygame.draw.rect(menu, (0,255,255), bExit, 1)
+              pygame.draw.rect(menu, Cyan, bExit, 1)
             if bShutdown.collidepoint(x,y):
-              pygame.draw.rect(menu, (0,255,255), bShutdown, 1)
+              pygame.draw.rect(menu, Cyan, bShutdown, 1)
             screen.blit(menu, menuRect)
             pygame.display.update()
 
 
         if (ev.type == pygame.MOUSEBUTTONUP):
-          print "mouse up, x,y = {}".format(ev.pos)
+#          print "mouse up, x,y = {}".format(ev.pos)
           x,y = ev.pos
 
 #          print "page {}".format(page)
@@ -792,7 +803,7 @@ def checkEvent():
 #                ret = True # just redraw current screen
                  Shutdown()
 
-          print "page {}".format(page)
+#          print "page {}".format(page)
 
     return ret
 
