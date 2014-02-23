@@ -21,6 +21,7 @@ from pygame.locals import *
 
 from time import sleep
 from datetime import datetime, timedelta
+import calendar
 import ephem, ephem.stars
 import math
 from issPass import ISSPass, VisualMagnitude
@@ -86,10 +87,12 @@ def signal_handler(signal, frame):
       BLST.stop()
     sys.exit(0)
 
-#def exit():
-#  print "Exit"
-##  sleep(1)
-#  pygame.quit()
+def utc_to_local(utc_dt):
+    # get integer timestamp to avoid precision lost
+    timestamp = calendar.timegm(utc_dt.timetuple())
+    local_dt = datetime.fromtimestamp(timestamp)
+    assert utc_dt.resolution >= timedelta(microseconds=1)
+    return local_dt.replace(microsecond=utc_dt.microsecond)
 
 def backlight(set):
     os.system("echo 252 > /sys/class/gpio/export")
@@ -238,7 +241,7 @@ def setupInfo():
     txtColor = (255,0,0)
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
     txt = 'ISS Tracker'
-    if page == pages.Demo: txt = txt + ' (Demo)'
+#    if page == pages.Demo: txt = txt + ' (Demo)'
     txt = txtFont.render(txt , 1, txtColor)
     bg.blit(txt, (15, line0))
 
@@ -260,12 +263,19 @@ def setupInfo():
     screen.blit(bg, bgRect)
     pygame.display.update()
 
-def showInfo(tNow, issp, obs, iss, sun):
+def showInfo(utcNow, issp, obs, iss, sun):
     global bg, bgRect
 
     txtColor = (255,0,0)
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     screen.blit(bg, bgRect) # write background image
+
+#    tn = ephem.localtime(obs.date).strftime('%T')
+    tn = utc_to_local(utcNow)
+    tn = tn.strftime('%T')
+    tn = txtFont.render(tn, 1, txtColor)
+    rect = tn.get_rect()
+    screen.blit(tn, (320 - rect.width, line0))
 
     t1 = ephem.localtime(issp.risetime).strftime('%b %d %H:%M:%S')
     txt = txtFont.render(t1 , 1, txtColor)
@@ -306,7 +316,7 @@ def showInfo(tNow, issp, obs, iss, sun):
 
 # ---------------------------------------------------------------------
 
-def setupSky(tNow, issp, obs, iss, sun):
+def setupSky(issp, obs, iss, sun):
     global bg, issImg, issRect
 
     bg = pygame.image.load("ISSTracker7Dim.png")
@@ -362,8 +372,9 @@ def setupSky(tNow, issp, obs, iss, sun):
 
     pygame.display.update()
 
-def showSky(tNow, issp, obs, iss, sun):
+def showSky(utcNow, issp, obs, iss, sun):
     global bg, issImg, issRect, BLST
+
     txtColor = (255,255,0)
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
 
@@ -375,7 +386,8 @@ def showSky(tNow, issp, obs, iss, sun):
       BLST.set(vmag, issalt, 10)
       BLST.start()
 
-    t1 = ephem.localtime(obs.date).strftime("%T")
+#    t1 = ephem.localtime(obs.date).strftime("%T")
+    t1 = utc_to_local(utcNow).strftime('%T')
     t1 = txtFont.render(t1, 1, txtColor)
 
     if (issalt>0): # if ISS is up, show the time left before it  will set
@@ -442,46 +454,54 @@ def showSky(tNow, issp, obs, iss, sun):
 
 def pageAuto():
   global page
-  stime = 1
+#  stime = 1
   print 'Auto'
   while (page == pages.Auto):
     if checkEvent(): return
 
-    tNow = datetime.utcnow()
-    obs.date = tNow
+    utcNow = datetime.utcnow()
+    obs.date = utcNow
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
     issp = ISSPass( iss, obs, sun, 5 ) # get data on next ISS pass
-    obs.date = tNow # reset date/time after ISSPass runs
+    obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
         setupInfo() # set up Info display
     # wait for ISS to rise
-        while page == pages.Auto and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
-            t1 = datetime.now()
-            tNow = datetime.utcnow()
-            obs.date = tNow
+        utcNow = datetime.utcnow() 
+        obs.date = utcNow 
+        while page == pages.Auto and ephem.localtime(obs.date) < ephem.localtime(issp.risetime) :
+#            utcNow = datetime.utcnow()
+            obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
-            showInfo(tNow, issp, obs, iss, sun)
-            while (datetime.now()-t1).total_seconds() < stime:
+            showInfo(utcNow, issp, obs, iss, sun)
+#            while (datetime.utcnow()-utcNow).total_seconds() < stime:
+            sec = utcNow.second
+            while utcNow.second == sec: # wait for the clock to tic
                 if checkEvent(): return
                 sleep(0.1)
-# ISS is up now! Display the Pass screen with the track, then show it's position in real time
+                utcNow = datetime.utcnow()
+
+# ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
-    setupSky(tNow, issp, obs, iss, sun) # set up the ISS Pass screen
+    setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pages.Auto and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
-        t1 = datetime.now()
-        tNow = datetime.utcnow()
-        obs.date = tNow # update observer time
+ #       utcNow = datetime.utcnow()
+        obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        showSky(tNow, issp, obs, iss, sun)
-        while (datetime.now()-t1).total_seconds() < stime:
+        showSky(utcNow, issp, obs, iss, sun)
+        sec = utcNow.second
+#        while (datetime.utcnow()-utcNow).total_seconds() < stime:
+        while utcNow.second == sec: # wait for the clock to tic
             if checkEvent(): return
             sleep(0.1)
+            utcNow = datetime.utcnow()
+
     BLST.stop() # stop blinking
   print 'end Auto'
 
@@ -492,56 +512,51 @@ def pageDemo():
   stime = 0.1 # 10x normal speed
   print 'Demo'
 
-  tNow = datetime(2014, 2, 6, 3, 3, 0) # 1 minute before ISS is due
-#  tNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
-#  tNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
-#  tNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
-#  tNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
-#  tNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
-#  tNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
-#  tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
-#  tNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
+  utcNow = datetime(2014, 2, 6, 3, 3, 0) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
+#  utcNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
+#  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
+#  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 
   while (page == pages.Demo):
     if checkEvent(): return
 
-    obs.date = tNow
+    obs.date = utcNow
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
     issp = ISSPass( iss, obs, sun ) # get data on next ISS pass
-    obs.date = tNow # reset date/time after ISSPass runs
+    obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
         setupInfo() # set up Info display
     # wait for ISS to rise
         while page == pages.Demo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
-            t1 = datetime.now()
-            tNow = tNow + timedelta(seconds=1)
-            obs.date = tNow
+            utcNow = utcNow + timedelta(seconds=1)
+            obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
-            showInfo(tNow, issp, obs, iss, sun)
+            showInfo(utcNow, issp, obs, iss, sun)
             if checkEvent(): return
-            while (datetime.now()-t1).total_seconds() < stime:
-                if checkEvent(): return
-                sleep(0.1)
+            sleep(0.1)
 
 # ISS is up now! Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
-    setupSky(tNow, issp, obs, iss, sun) # set up the ISS Pass screen
+    setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pages.Demo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
-        t1 = datetime.now()
-        tNow = tNow + timedelta(seconds=1)
-        obs.date = tNow # update observer time
+        utcNow = utcNow + timedelta(seconds=1)
+        obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        showSky(tNow, issp, obs, iss, sun)
-        if checkEvent(): return
-        while (datetime.now()-t1).total_seconds() < stime:
-            if checkEvent(): return
-            sleep(0.1)
+        showSky(utcNow, issp, obs, iss, sun)
+        if checkEvent(): break # don't forget to stop blinking
+        sleep(0.1)
+
     BLST.stop() # stop blinking
 
 # after one demo, switch to Auto
@@ -635,30 +650,35 @@ def pageSky():
   while (page == pages.Sky):
     if checkEvent(): break
 
-    tNow = datetime.utcnow()
-    obs.date = tNow
+    utcNow = datetime.utcnow()
+    obs.date = utcNow
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
 # find next ISS pass and compute position of ISS in case it is visible
     issp = ISSPass( iss, obs, sun ) # find next ISS pass
-    obs.date = tNow # reset date/time after ISSPass runs
+#    utcNow = datetime.utcnow()
+    obs.date = utcNow # reset date/time after ISSPass runs
     iss.compute(obs) # recompute ISS
-    setupSky(tNow, issp, obs, iss, sun) # set up the ISS Pass screen
+    setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the sky
     while page == pages.Sky :
-        t1 = datetime.now()
-        tNow = datetime.utcnow()
-        obs.date = tNow # update observer time
+#        utcNow = datetime.utcnow()
+        obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        showSky(tNow, issp, obs, iss, sun)
-        while (datetime.now()-t1).total_seconds() < stime:
+        showSky(utcNow, issp, obs, iss, sun)
+#        while (datetime.utcnow()-utcNow).total_seconds() < stime:
+        sec = utcNow.second
+        while sec == utcNow.second: # wait for clock to tic
             if checkEvent(): break
             sleep(0.1)
+            utcNow = datetime.utcnow()
+
 # todo: if ISS was up and has set, find next pass
     print 'ending'
     BLST.stop() # stop blinking
+
   print 'end Sky'
 
 #  ----------------------------------------------------------------
