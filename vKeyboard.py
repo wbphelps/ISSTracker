@@ -48,6 +48,9 @@ from string import maketrans
 Uppercase = maketrans("abcdefghijklmnopqrstuvwxyz`1234567890-=[]\;\',./",
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+{}|:"<>?')
 
+keyWidth = 27 # key width including borders
+keyHeight = 29 # key height 
+
 class TextInput(object):
     ''' Handles the text input box and manages the cursor '''
     def __init__(self, background, screen, text, x, y):
@@ -150,10 +153,10 @@ class TextInput(object):
         self.screen.blit(self.cursorlayer,(x,y))    
         
 
-class VirtualKey(object):
+class VKey(object):
     ''' A single key for the VirtualKeyboard '''
 #    def __init__(self, caption, x, y, w=67, h=67):
-    def __init__(self, caption, x, y, w=28, h=28):
+    def __init__(self, caption, x, y, w=keyWidth+1, h=keyHeight+1):
         self.x = x
         self.y = y
         self.caption = caption
@@ -180,10 +183,8 @@ class VirtualKey(object):
         
         myletter = self.caption
         if shifted:
-#            if myletter == 'Shift':
             if self.shiftkey:
-                self.selected = True # Draw me uppercase
-#            myletter = myletter.upper()
+                self.selected = True # highlight the Shift button
             myletter = myletter.translate(Uppercase)
         
         
@@ -371,78 +372,69 @@ class VirtualKeyboard(object):
             
         self.paintkeys()        
             
-    def addkeys(self):
-        ''' Adds the setup for the keys.  This would be easy to modify for additional keys
+    def addkeys(self):  # Add all the keys for the virtual keyboard 
         
-         The default start position places the keyboard slightly left of center by design
-         so many people have issues with the right side of their touchscreens that I did this
-         on purpose. '''
-        
-#        x = 10 
-#        y = 140
         x = 3
         y = 70
-        kx = 26
-        ky = 27
+        keyWidth = 26
+        keyHeight = 29
         
         row = ['1','2','3','4','5','6','7','8','9','0','-','=']
         for item in row:
-            onekey = VirtualKey(item,x,y)
+            onekey = VKey(item,x,y)
             onekey.font = self.font
             self.keys.append(onekey)
-            x += kx # was 70
+            x += keyWidth
         
-        y += ky # was 70
-        x = 3 #10
+        y += keyHeight
+        x = 3 
         
         row = ['q','w','e','r','t','y','u','i','o','p','[',']']
         for item in row:
-            onekey = VirtualKey(item,x,y)
+            onekey = VKey(item,x,y)
             onekey.font = self.font
             self.keys.append(onekey)
-            x += kx # 70
+            x += keyWidth
 
-        y += ky # 70
-        x = 15 #10
-        row = ['a','s','d','f','g','h','j','k','l',';','\'']
+        y += keyHeight
+#        x = 15
+        x = 3
+        row = ['a','s','d','f','g','h','j','k','l',';','\'','`']
         for item in row:
-            onekey = VirtualKey(item,x,y)
+            onekey = VKey(item,x,y)
             onekey.font = self.font
             self.keys.append(onekey)
-            x += kx # 70
+            x += keyWidth # 70
             
         x = 15 #10
-        y += ky # 70        
+        y += keyHeight # 70        
         
         row = ['z','x','c','v','b','n','m',',','.','/','\\']
         for item in row:
-            onekey = VirtualKey(item,x,y)
+            onekey = VKey(item,x,y)
             onekey.font = self.font
             self.keys.append(onekey)
-            x += kx # 70
+            x += keyWidth # 70
 
         x = 20
-        y += ky + 5
+        y += keyHeight + 5
 
-#        onekey = VirtualKey('SHIFT',x,y,138)
-        onekey = VirtualKey('Shift',x,y,70)
+        onekey = VKey('Shift',x,y,70)
         onekey.font = self.font
         onekey.shiftkey = True
         self.keys.append(onekey)
 
-#        onekey = VirtualKey('SPACE',x,y,138)
-        onekey = VirtualKey('Space',100,y,80)
+        onekey = VKey('Space',97,y,80)
         onekey.font = self.font
         onekey.spacekey = True
         self.keys.append(onekey)
 
-#        onekey = VirtualKey('ENTER',x,y,138)
-        onekey = VirtualKey('Enter',190,y,70)
+        onekey = VKey('Enter',184,y,70)
         onekey.font = self.font
         onekey.enter = True
         self.keys.append(onekey)
             
-        onekey = VirtualKey('<',270,y)
+        onekey = VKey('<-',261,y,38)
         onekey.font = self.font
         onekey.bskey = True
         self.keys.append(onekey)

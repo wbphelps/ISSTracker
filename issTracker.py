@@ -62,6 +62,7 @@ obs.date = tNow
 sun = ephem.Sun(obs)
 
 Red = pygame.Color('red')
+Orange = pygame.Color('orange')
 Green = pygame.Color('green')
 Blue = pygame.Color('blue')
 Yellow = pygame.Color('yellow')
@@ -280,10 +281,8 @@ def showInfo(utcNow, issp, obs, iss, sun):
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     screen.blit(bg, bgRect) # write background image
 
-#    tn = ephem.localtime(obs.date).strftime('%T')
-    tn = utc_to_local(utcNow)
-    tn = tn.strftime('%T')
-    tn = txtFont.render(tn, 1, txtColor)
+    tn = utc_to_local(utcNow).strftime('%T')
+    tn = txtFont.render(tn, 1, Orange) # show current time
     rect = tn.get_rect()
     screen.blit(tn, (320 - rect.width, line0))
 
@@ -318,8 +317,13 @@ def showInfo(utcNow, issp, obs, iss, sun):
 
     td = issp.risetime - obs.date
     tds = timedelta(td).total_seconds()
+
+    if tds > 3600: tnc = Red
+    elif tds > 100: tnc = Yellow
+    else: tnc = Green
+
     t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
-    txt = txtFont.render(t2 , 1, txtColor)
+    txt = txtFont.render(t2 , 1, tnc)
     screen.blit(txt, (col2, line6))
 
     pygame.display.flip()
