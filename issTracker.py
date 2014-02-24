@@ -27,6 +27,8 @@ import math
 from issPass import ISSPass, VisualMagnitude
 import logging
 #import threading
+import vKeyboard
+
 #from blinkstick import blinkstick
 from issTLE import issTLE
 from issBlinkStick import BlinkStick
@@ -129,7 +131,7 @@ os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 # pages
 #pages = enum(Demo=0,Auto=1,Info=2,Sky=3,Menu=10,Location=11,GPS=12,TLE=13)
-pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,Menu=10,Location=11,GPS=12,TLE=13)
+pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,Keybd=4,Menu=10,Location=11,GPS=12,TLE=13)
 
 # Set up GPIO pins
 gpio = wiringpi2.GPIO(wiringpi2.GPIO.WPI_MODE_GPIO)  
@@ -656,6 +658,20 @@ def pagePasses():
 
 #  ----------------------------------------------------------------
 
+def pageKeybd():
+  global page
+  print 'Keybd'
+  while page == pages.Keybd:
+    if checkEvent(): return
+    mykeys = vKeyboard.VirtualKeyboard()
+    userinput = mykeys.run(screen, 'hello')
+    print 'keybd: ' + userinput
+    page = pages.Menu
+    return
+
+
+#  ----------------------------------------------------------------
+
 def pageSky():
   global page
   stime = 1
@@ -704,7 +720,7 @@ def doShutdown():
 
 def pageMenu():
     global page
-    global menu, menuRect, bAuto, bDemo, bPasses, bSky, bExit, bShutdown
+    global menu, menuRect, bAuto, bDemo, bPasses, bSky, bKeybd, bExit, bShutdown
 
 #    menuNames   = { 1:'Auto', 2:'Demo', 3:'Sky', 4:'Exit', 5:'Shutdown' }
 #    menuActions = { 1:pageAuto, 2:pageDemo, 3:pageSky, 4:doExit, 5:doShutdown }
@@ -717,20 +733,23 @@ def pageMenu():
     txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
 
-    txtAuto = txtFont.render('Auto' , 1, txtColor)
-    bAuto = menu.blit(txtAuto, (20, 10))
-    txtDemo = txtFont.render('Demo' , 1, txtColor)
-    bDemo = menu.blit(txtDemo, (20, 50))
-    txtSky  = txtFont.render('Sky' , 1, txtColor)
-    bSky = menu.blit(txtSky , (20, 90))
-    txtPasses  = txtFont.render('Passes' , 1, txtColor)
-    bPasses = menu.blit(txtPasses , (20, 130))
-    txtExit  = txtFont.render('Exit' , 1, txtColor)
-    bExit = menu.blit(txtExit, (20, 170))
+    ls = 30 # line spacing
+    txt = txtFont.render('Auto' , 1, txtColor)
+    bAuto = menu.blit(txt, (20, 10))
+    txt = txtFont.render('Demo' , 1, txtColor)
+    bDemo = menu.blit(txt, (20, 10 + ls*1))
+    txt  = txtFont.render('Sky' , 1, txtColor)
+    bSky = menu.blit(txt , (20, 10 + ls*2))
+    txt  = txtFont.render('Passes' , 1, txtColor)
+    bPasses = menu.blit(txt, (20, 10+ls*3))
+    txt  = txtFont.render('Exit' , 1, txtColor)
+    bExit = menu.blit(txt, (20, 10+ls*4))
+    txt  = txtFont.render('Keybd' , 1, txtColor)
+    bKeybd = menu.blit(txt, (20, 10+ls*5))
 
     txtColor = Red
-    txtShut  = txtFont.render('Shutdown' , 1, txtColor)
-    bShutdown = menu.blit(txtShut, (20, 210))
+    txt  = txtFont.render('Shutdown' , 1, txtColor)
+    bShutdown = menu.blit(txt, (20, 20+ls*6))
 
     screen.blit(menu, menuRect)
     pygame.display.update()
@@ -739,7 +758,7 @@ def pageMenu():
         if checkEvent(): break
 
 #  ----------------------------------------------------------------
-global menu, menuRect, bAuto, bDemo, bSky, bExit, bShutdown
+global menu, menuRect, bAuto, bDemo, bSky, bKeybd, bExit, bShutdown
 
 def checkEvent():
     global page
@@ -767,6 +786,8 @@ def checkEvent():
               pygame.draw.rect(menu, Cyan, bPasses, 1)
             if bExit.collidepoint(x,y):
               pygame.draw.rect(menu, Cyan, bExit, 1)
+            if bKeybd.collidepoint(x,y):
+              pygame.draw.rect(menu, Cyan, bKeybd, 1)
             if bShutdown.collidepoint(x,y):
               pygame.draw.rect(menu, Cyan, bShutdown, 1)
             screen.blit(menu, menuRect)
@@ -795,6 +816,9 @@ def checkEvent():
               if bPasses.collidepoint(x,y):
                 page = pages.Passes
                 ret = True
+              if bKeybd.collidepoint(x,y):
+                 page = pages.Keybd
+                 ret = True
               if bExit.collidepoint(x,y):
                  pygame.quit()
                  sys.exit(0)
@@ -857,6 +881,8 @@ while(True):
         pagePasses()
     elif page == pages.Menu:
         pageMenu()
+    elif page == pages.Keybd:
+        pageKeybd()
     else:
         pageAuto()
 

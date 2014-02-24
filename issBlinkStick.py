@@ -62,6 +62,6 @@ class BlinkStick():
   def stop(self):
     with self.lock:
       self._run = False # stop loop
-    while self.running :
-      sleep(0.1)
+#    while self.running :
+#      sleep(0.1)
 
