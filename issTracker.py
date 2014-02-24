@@ -27,8 +27,8 @@ import math
 from issPass import ISSPass, VisualMagnitude
 import logging
 #import threading
-import vKeyboard
 
+from virtualKeyboard import VirtualKeyboard
 #from blinkstick import blinkstick
 from issTLE import issTLE
 from issBlinkStick import BlinkStick
@@ -132,7 +132,7 @@ os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 # pages
 #pages = enum(Demo=0,Auto=1,Info=2,Sky=3,Menu=10,Location=11,GPS=12,TLE=13)
-pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,Keybd=4,Menu=10,Location=11,GPS=12,TLE=13)
+#pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,GPS=4,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
 
 # Set up GPIO pins
 gpio = wiringpi2.GPIO(wiringpi2.GPIO.WPI_MODE_GPIO)  
@@ -667,7 +667,8 @@ def pageKeybd():
   print 'Keybd'
   while page == pages.Keybd:
     if checkEvent(): return
-    mykeys = vKeyboard.VirtualKeyboard()
+#    mykeys = virtualKeyboard.VirtualKeyboard()
+    mykeys = VirtualKeyboard()
     userinput = mykeys.run(screen, 'hello')
     print 'keybd: ' + userinput
     page = pages.Menu
@@ -716,44 +717,50 @@ def pageSky():
 
 #  ----------------------------------------------------------------
 
-def doShutdown():
+def pageExit():
+    # confirm with a prompt?
+    sys.exit(0)
+
+def pageShutdown():
     # confirm with a prompt?
     Shutdown()
 
 #  ----------------------------------------------------------------
 
+pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,GPS=4,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
+
+class menuItem():
+    def __init__(self,screen,caption,position,font,color,page):
+        self.caption = caption
+        self.position = position
+        txt = font.render(caption, 1, color)
+        self.rect = screen.blit(txt, position) 
+        self.page = page
+
 def pageMenu():
     global page
-    global menu, menuRect, bAuto, bDemo, bPasses, bSky, bKeybd, bExit, bShutdown
+    global menu, menuRect, menuItems
 
-#    menuNames   = { 1:'Auto', 2:'Demo', 3:'Sky', 4:'Exit', 5:'Shutdown' }
-#    menuActions = { 1:pageAuto, 2:pageDemo, 3:pageSky, 4:doExit, 5:doShutdown }
 
-    menu = pygame.Surface((160,240))
+    menu = pygame.Surface((320,240)) # use the entire screen for the menu
     menuRect = menu.get_rect()
-#    menuRect.left = 40
-#    menuRect.top = 20
+    menuItems = []
 
-    txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
 
+    l0 = 20 # line 0
     ls = 30 # line spacing
-    txt = txtFont.render('Auto' , 1, txtColor)
-    bAuto = menu.blit(txt, (20, 10))
-    txt = txtFont.render('Demo' , 1, txtColor)
-    bDemo = menu.blit(txt, (20, 10 + ls*1))
-    txt  = txtFont.render('Sky' , 1, txtColor)
-    bSky = menu.blit(txt , (20, 10 + ls*2))
-    txt  = txtFont.render('Passes' , 1, txtColor)
-    bPasses = menu.blit(txt, (20, 10+ls*3))
-    txt  = txtFont.render('Exit' , 1, txtColor)
-    bExit = menu.blit(txt, (20, 10+ls*4))
-    txt  = txtFont.render('Keybd' , 1, txtColor)
-    bKeybd = menu.blit(txt, (20, 10+ls*5))
+    menuItems.append(menuItem(menu,'Auto', (20,l0+ls*0),txtFont,Yellow,pages.Auto))
+    menuItems.append(menuItem(menu,'Demo', (20,l0+ls*1),txtFont,Yellow,pages.Demo))
+    menuItems.append(menuItem(menu,'Sky',  (20,l0+ls*2),txtFont,Yellow,pages.Sky))
+    menuItems.append(menuItem(menu,'Passes', (20,l0+ls*3),txtFont,Yellow,pages.Passes))
+    menuItems.append(menuItem(menu,'GPS',  (20,l0+ls*4),txtFont,Yellow,pages.Menu))
 
-    txtColor = Red
-    txt  = txtFont.render('Shutdown' , 1, txtColor)
-    bShutdown = menu.blit(txt, (20, 20+ls*6))
+    ls = 30 #
+    menuItems.append(menuItem(menu,'Location', (160,l0+ls*0),txtFont,Yellow,pages.Menu))
+    menuItems.append(menuItem(menu,'DateTime', (160,l0+ls*1),txtFont,Yellow,pages.Menu))
+    menuItems.append(menuItem(menu,'Exit',     (160,l0+ls*2),txtFont,Yellow,pages.Exit))
+    menuItems.append(menuItem(menu,'Shutdown', (160,l0+ls*4),txtFont,Red,pages.Shutdown))
 
     screen.blit(menu, menuRect)
     pygame.display.update()
@@ -762,11 +769,11 @@ def pageMenu():
         if checkEvent(): break
 
 #  ----------------------------------------------------------------
-global menu, menuRect, bAuto, bDemo, bSky, bKeybd, bExit, bShutdown
+global menu, menuRect, menuItems
 
 def checkEvent():
     global page
-    global menu, menuRect, bAuto, bDemo, bSky, bExit, bShutdown
+    global menu, menuRect, menuItems
 #    ev = pygame.event.poll()
     ret = False
     evl = pygame.event.get()
@@ -780,20 +787,9 @@ def checkEvent():
 #          print "mouse dn, x,y = {}".format(ev.pos)
           x,y = ev.pos
           if page >= pages.Menu:
-            if bAuto.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bAuto, 1)
-            if bDemo.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bDemo, 1)
-            if bSky.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bSky, 1)
-            if bPasses.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bPasses, 1)
-            if bExit.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bExit, 1)
-            if bKeybd.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bKeybd, 1)
-            if bShutdown.collidepoint(x,y):
-              pygame.draw.rect(menu, Cyan, bShutdown, 1)
+            for item in menuItems:
+              if item.rect.collidepoint(x,y):
+                pygame.draw.rect(menu, Cyan, item.rect, 1)
             screen.blit(menu, menuRect)
             pygame.display.update()
 
@@ -808,30 +804,10 @@ def checkEvent():
               ret = True
           else:
 #              print "check xy {},{}".format(x,y)
-              if bAuto.collidepoint(x,y):
-                page = pages.Auto
+            for item in menuItems:
+              if item.rect.collidepoint(x,y):
+                page = item.page
                 ret = True
-              if bDemo.collidepoint(x,y):
-                page = pages.Demo
-                ret = True
-              if bSky.collidepoint(x,y):
-                page = pages.Sky
-                ret = True
-              if bPasses.collidepoint(x,y):
-                page = pages.Passes
-                ret = True
-              if bKeybd.collidepoint(x,y):
-                 page = pages.Keybd
-                 ret = True
-              if bExit.collidepoint(x,y):
-                 pygame.quit()
-                 sys.exit(0)
-              if bShutdown.collidepoint(x,y):
-#                page = pages.Sky
-#                ret = True # just redraw current screen
-                 Shutdown()
-
-#          print "page {}".format(page)
 
     return ret
 
@@ -885,8 +861,10 @@ while(True):
         pagePasses()
     elif page == pages.Menu:
         pageMenu()
-    elif page == pages.Keybd:
-        pageKeybd()
+    elif page == pages.Exit:
+        pageExit()
+    elif page == pages.Shutdown:
+        pageShutdown()
     else:
         pageAuto()
 
