@@ -130,10 +130,6 @@ os.putenv('SDL_FBDEV'      , '/dev/fb1')
 os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
 os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
-# pages
-#pages = enum(Demo=0,Auto=1,Info=2,Sky=3,Menu=10,Location=11,GPS=12,TLE=13)
-#pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,GPS=4,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
-
 # Set up GPIO pins
 gpio = wiringpi2.GPIO(wiringpi2.GPIO.WPI_MODE_GPIO)  
 #gpio.pinMode(backlightpin,gpio.OUTPUT)  
@@ -725,6 +721,7 @@ def pageDateTime():
         os.system('sudo date -s "{}"'.format(dt))
     except:
         pass
+
     page = pageMenu
     return
 
@@ -796,6 +793,17 @@ def pageSky():
 
 #  ----------------------------------------------------------------
 
+def pageWifi():
+    global page, pageHist
+    print 'Wifi'
+    while (page == pageWifi):
+        if checkEvent():
+            pageHist = pageHist[:-1] # remove subment item
+            return
+        sleep(0.5)
+
+#  ----------------------------------------------------------------
+
 def pageExit():
     # confirm with a prompt?
     sys.exit(0)
@@ -804,26 +812,38 @@ def pageShutdown():
     # confirm with a prompt?
     Shutdown()
 
+def pageSleep():
+    global page, pageHist
+    print 'Sleep'
+    backlight(False)
+    while (page == pageSleep):
+        if checkEvent():
+            backlight(True)
+            pageHist = pageHist[:-1] # remove submenu item
+            break
+        sleep(0.5)
+
 #  ----------------------------------------------------------------
 
 #pages = enum(Auto=0,Demo=1,Sky=2,Passes=3,GPS=4,Keybd=5,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
 
 class menuItem():
-    def __init__(self,caption,position,font,color,page):
+    def __init__(self,caption,position,font,color,page,escapeKey=False,subMenu=False):
         self.caption = caption
         self.position = position
         self.font = font
         self.color = color
         self.page = page
-        self.escapekey = False
+        self.escapekey = escapeKey
+        self.subMenu = subMenu
 
 def setMenu():
     global menuScrn, Menu
     Menu = []
 
     txtFont = pygame.font.SysFont('Courier', 24, bold=True)
-    item = menuItem('X',(295,5),txtFont,Red,None) # escape key
-    item.escapekey = True # tag special key
+    item = menuItem('X',(295,5),txtFont,Red,None,True) # escape key
+#    item.escapekey = True # tag special key
     Menu.append(item)
 
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
@@ -840,17 +860,21 @@ def setMenu():
     Menu.append(menuItem('Passes', (lx,ly),txtFont,Yellow,pagePasses))
     ly += lh
     Menu.append(menuItem('GPS',    (lx,ly),txtFont,Yellow,pageMenu))
+    ly += lh
+    ly += lh
+    Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Yellow,pageWifi,False,True))
 
     lx = 160 # right side
     ly = 30 # line position
     lh = 30 # line height
-    Menu.append(menuItem('DateTime', (lx,ly),txtFont,Yellow,pageDateTime))
+    Menu.append(menuItem('DateTime', (lx,ly),txtFont,Yellow,pageDateTime,False,True))
     ly += lh
-    Menu.append(menuItem('Location', (lx,ly),txtFont,Yellow,pageLocation))
+    Menu.append(menuItem('Location', (lx,ly),txtFont,Yellow,pageLocation,False,True))
     ly += lh
-    Menu.append(menuItem('TLEs',     (lx,ly),txtFont,Yellow,pageTLEs))
+    Menu.append(menuItem('TLEs',     (lx,ly),txtFont,Yellow,pageTLEs,False,True))
     ly += lh
     ly += lh
+    Menu.append(menuItem('Sleep',    (lx,ly),txtFont,(0,127,255),pageSleep,False,True))
     ly += lh
     Menu.append(menuItem('Exit',     (lx,ly),txtFont,Orange,pageExit))
     ly += lh
@@ -919,6 +943,9 @@ def checkEvent():
                     page = pageHist[-1:][0] # last item in list
                     pageHist = pageHist[:-1] # remove last item
                     ret = True
+#                if item.subMenu:
+#                    item.page() # call it now
+#                    break
                 elif item.page == None:
                     pass
                 else:
