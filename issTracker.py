@@ -54,8 +54,8 @@ line6 = line5+lsize
 
 # set up observer location
 obs = ephem.Observer()
-obs.lat = '37.4388'
-obs.lon = '-122.124'
+obs.lat = math.radians(37.4388)
+obs.lon = math.radians(-122.124)
 
 tNow = datetime.utcnow()
 obs.date = tNow
@@ -252,7 +252,7 @@ def setupInfo():
     txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
     txt = 'ISS Tracker'
-#    if page == pages.Demo: txt = txt + ' (Demo)'
+#    if page == pageDemo: txt = txt + ' (Demo)'
     txt = txtFont.render(txt , 1, txtColor)
     bg.blit(txt, (15, line0))
 
@@ -470,7 +470,7 @@ def pageAuto():
   global page
 #  stime = 1
   print 'Auto'
-  while (page == pages.Auto):
+  while (page == pageAuto):
     if checkEvent(): return
 
     utcNow = datetime.utcnow()
@@ -487,7 +487,7 @@ def pageAuto():
     # wait for ISS to rise
         utcNow = datetime.utcnow() 
         obs.date = utcNow 
-        while page == pages.Auto and ephem.localtime(obs.date) < ephem.localtime(issp.risetime) :
+        while page == pageAuto and ephem.localtime(obs.date) < ephem.localtime(issp.risetime) :
 #            utcNow = datetime.utcnow()
             obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
@@ -503,7 +503,7 @@ def pageAuto():
     iss.compute(obs) # recompute ISS
     setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
-    while page == pages.Auto and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
+    while page == pageAuto and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
  #       utcNow = datetime.utcnow()
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
@@ -536,7 +536,7 @@ def pageDemo():
 #  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 #  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 
-  while (page == pages.Demo):
+  while (page == pageDemo):
     if checkEvent(): return
 
     obs.date = utcNow
@@ -550,7 +550,7 @@ def pageDemo():
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
         setupInfo() # set up Info display
     # wait for ISS to rise
-        while page == pages.Demo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
+        while page == pageDemo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
             utcNow = utcNow + timedelta(seconds=1)
             obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
@@ -562,7 +562,7 @@ def pageDemo():
     iss.compute(obs) # recompute ISS
     setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
-    while page == pages.Demo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
+    while page == pageDemo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
         utcNow = utcNow + timedelta(seconds=1)
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
@@ -575,7 +575,7 @@ def pageDemo():
     BLST.stop() # stop blinking
 
 # after one demo, switch to Auto
-    if page == pages.Demo: page = pages.Auto # could also be menu...
+    if page == pageDemo: page = pageAuto # could also be menu...
   
   print 'end Demo'
 
@@ -644,7 +644,7 @@ def pagePasses():
   stime = 1
   print 'Passes'
 
-  while (page == pages.Passes):
+  while (page == pagePasses):
 
     if checkEvent(): return
 
@@ -655,23 +655,53 @@ def pagePasses():
 
     showPasses(iss, obs, sun)
 
-    while (page == pages.Passes): # wait for a menu selection
+    while (page == pagePasses): # wait for a menu selection
       if checkEvent(): return
       sleep(0.1)
 
+#  ----------------------------------------------------------------
+
+def pageDateTime():
+  global page
+  print 'DateTime'
+  while page == pageDateTime:
+    if checkEvent(): return
+    mykeys = VirtualKeyboard()
+    txt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    txt = mykeys.run(screen, txt)
+    print 'datetime: ' + txt
+    try:
+        dt = datetime.strptime(txt, '%Y-%m-%d %H:%M:%S') # check format
+        print 'dt: {}'.format(dt)
+        os.system('sudo date -s "{}"'.format(dt))
+    except:
+        pass
+    page = pageMenu
+    return
 
 #  ----------------------------------------------------------------
 
-def pageKeybd():
+def pageLocation():
   global page
-  print 'Keybd'
-  while page == pages.Keybd:
+  print 'Location'
+  while page == pageLocation:
     if checkEvent(): return
-#    mykeys = virtualKeyboard.VirtualKeyboard()
     mykeys = VirtualKeyboard()
-    userinput = mykeys.run(screen, 'hello')
-    print 'keybd: ' + userinput
-    page = pages.Menu
+    txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
+    txt = mykeys.run(screen, txt)
+    try:
+        print 'Location: {}'.format(txt)
+        loc = txt.split(',')
+        print 'loc: {:6.4f},{:6.4f}'.format(float(loc[0]),float(loc[1]))
+        obs.lat = math.radians(float(loc[0]))
+        obs.lon = math.radians(float(loc[1]))
+        print 'obs set: {:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
+        sun = ephem.Sun(obs) # recompute
+        iss.compute(obs) # recompute
+    except:
+        pass
+
+    page = pageMenu
     return
 
 
@@ -681,7 +711,7 @@ def pageSky():
   global page
   stime = 1
   print 'Sky'
-  while (page == pages.Sky):
+  while (page == pageSky):
     if checkEvent(): break
 
     utcNow = datetime.utcnow()
@@ -696,7 +726,7 @@ def pageSky():
     iss.compute(obs) # recompute ISS
     setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the sky
-    while page == pages.Sky :
+    while page == pageSky :
 #        utcNow = datetime.utcnow()
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
@@ -727,53 +757,79 @@ def pageShutdown():
 
 #  ----------------------------------------------------------------
 
-pages = enum(Demo=0,Auto=1,Sky=2,Passes=3,GPS=4,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
+#pages = enum(Auto=0,Demo=1,Sky=2,Passes=3,GPS=4,Keybd=5,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
 
 class menuItem():
-    def __init__(self,screen,caption,position,font,color,page):
+    def __init__(self,caption,position,font,color,page):
         self.caption = caption
         self.position = position
-        txt = font.render(caption, 1, color)
-        self.rect = screen.blit(txt, position) 
+        self.font = font
+        self.color = color
         self.page = page
+        self.escapekey = False
 
-def pageMenu():
-    global page
-    global menu, menuRect, menuItems
+def setMenu():
+    global menuScrn, Menu
+    Menu = []
 
-
-    menu = pygame.Surface((320,240)) # use the entire screen for the menu
-    menuRect = menu.get_rect()
-    menuItems = []
+    txtFont = pygame.font.SysFont('Courier', 24, bold=True)
+    item = menuItem('X',(295,5),txtFont,Red,None) # escape key
+    item.escapekey = True # tag special key
+    Menu.append(item)
 
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
 
-    l0 = 20 # line 0
-    ls = 30 # line spacing
-    menuItems.append(menuItem(menu,'Auto', (20,l0+ls*0),txtFont,Yellow,pages.Auto))
-    menuItems.append(menuItem(menu,'Demo', (20,l0+ls*1),txtFont,Yellow,pages.Demo))
-    menuItems.append(menuItem(menu,'Sky',  (20,l0+ls*2),txtFont,Yellow,pages.Sky))
-    menuItems.append(menuItem(menu,'Passes', (20,l0+ls*3),txtFont,Yellow,pages.Passes))
-    menuItems.append(menuItem(menu,'GPS',  (20,l0+ls*4),txtFont,Yellow,pages.Menu))
+    lx = 20 # left side
+    ly = 30 # line position
+    lh = 30 # line height
+    Menu.append(menuItem('Auto', (lx,ly),txtFont,Yellow,pageAuto))
+    ly += lh
+    Menu.append(menuItem('Demo', (lx,ly),txtFont,Yellow,pageDemo))
+    ly += lh
+    Menu.append(menuItem('Sky',  (lx,ly),txtFont,Yellow,pageSky))
+    ly += lh
+    Menu.append(menuItem('Passes', (lx,ly),txtFont,Yellow,pagePasses))
+    ly += lh
+    Menu.append(menuItem('GPS',  (lx,ly),txtFont,Yellow,pageMenu))
 
-    ls = 30 #
-    menuItems.append(menuItem(menu,'Location', (160,l0+ls*0),txtFont,Yellow,pages.Menu))
-    menuItems.append(menuItem(menu,'DateTime', (160,l0+ls*1),txtFont,Yellow,pages.Menu))
-    menuItems.append(menuItem(menu,'Exit',     (160,l0+ls*2),txtFont,Yellow,pages.Exit))
-    menuItems.append(menuItem(menu,'Shutdown', (160,l0+ls*4),txtFont,Red,pages.Shutdown))
+    lx = 160 # right side
+    ly = 30 # line position
+    lh = 30 # line height
+    Menu.append(menuItem('DateTime', (lx,ly),txtFont,Yellow,pageDateTime))
+    ly += lh
+    Menu.append(menuItem('Location', (lx,ly),txtFont,Yellow,pageLocation))
+    ly += lh
+    Menu.append(menuItem('Exit',     (lx,ly),txtFont,Yellow,pageExit))
+    ly += lh
+    ly += lh
+    Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
-    screen.blit(menu, menuRect)
+def pageMenu():
+    global menuScrn, menuRect, Menu
+
+    menuScrn = pygame.Surface((320,240)) # use the entire screen for the menu
+    menuRect = menuScrn.get_rect()
+
+    for item in Menu:
+        txt = item.font.render(item.caption, 1, item.color)
+        item.rect = menuScrn.blit(txt, item.position)
+        if item.escapekey:
+            item.rect.x, item.rect.y, item.rect.width, item.rect.height = 288, 4, 28, 28 # make the X easier to hit
+            pygame.draw.rect(menuScrn, Red, item.rect, 1)
+
+    screen.blit(menuScrn, menuRect)
     pygame.display.update()
 
-    while page == pages.Menu:
+    while page == pageMenu:
         if checkEvent(): break
 
 #  ----------------------------------------------------------------
-global menu, menuRect, menuItems
+global menuScrn,  Menu
 
 def checkEvent():
     global page
-    global menu, menuRect, menuItems
+    global menuScrn, menuRect, Menu, lastPage
+
 #    ev = pygame.event.poll()
     ret = False
     evl = pygame.event.get()
@@ -784,30 +840,35 @@ def checkEvent():
 #    print "ev: {}".format(ev)
 
         if (ev.type == pygame.MOUSEBUTTONDOWN):
-#          print "mouse dn, x,y = {}".format(ev.pos)
+          print "mouse dn, x,y = {}, page={}".format(ev.pos,page)
           x,y = ev.pos
-          if page >= pages.Menu:
-            for item in menuItems:
+          if page == pageMenu: # what numerical value ???
+            for item in Menu:
               if item.rect.collidepoint(x,y):
-                pygame.draw.rect(menu, Cyan, item.rect, 1)
-            screen.blit(menu, menuRect)
+                pygame.draw.rect(menuScrn, Cyan, item.rect, 1)
+            screen.blit(menuScrn, menuRect)
             pygame.display.update()
 
-
         if (ev.type == pygame.MOUSEBUTTONUP):
-#          print "mouse up, x,y = {}".format(ev.pos)
+          print "mouse up, x,y = {}".format(ev.pos)
           x,y = ev.pos
 
 #          print "page {}".format(page)
-          if page < pages.Menu:
-              page = pages.Menu
+          if page != pageMenu: # other menu pages???
+              lastPage = page # save for escape
+              page = pageMenu
               ret = True
           else:
 #              print "check xy {},{}".format(x,y)
-            for item in menuItems:
+            for item in Menu:
               if item.rect.collidepoint(x,y):
-                page = item.page
-                ret = True
+                if item.escapekey:
+                    page = lastPage
+                    ret = True
+                else:
+                    page = item.page
+                    ret = True
+                break
 
     return ret
 
@@ -849,23 +910,8 @@ if True:
     sleep(2)
     BLST.stop()
 
-page = pages.Auto
+setMenu() # set up menu
+page = pageAuto
 
 while(True):
-
-    if page == pages.Demo:
-        pageDemo()
-    elif page == pages.Sky:
-        pageSky()
-    elif page == pages.Passes:
-        pagePasses()
-    elif page == pages.Menu:
-        pageMenu()
-    elif page == pages.Exit:
-        pageExit()
-    elif page == pages.Shutdown:
-        pageShutdown()
-    else:
-        pageAuto()
-
-
+    page()
