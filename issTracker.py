@@ -661,6 +661,49 @@ def pagePasses():
 
 #  ----------------------------------------------------------------
 
+def showTLEs():
+
+    scr = pygame.Surface((320,240))
+    scrRect = scr.get_rect()
+
+    txtFont = pygame.font.SysFont('Courier', 15, bold=True)
+
+    ll = 34
+    txt = tle.tle[0]
+    txtr = txtFont.render(txt[:ll], 1, White)
+    scr.blit(txtr, (0,10))
+#    txtr = txtFont.render(txt[ll:], 1, White)
+#    scr.blit(txtr, (0,30))
+
+    txt = tle.tle[1]
+    txtr = txtFont.render(txt[:ll], 1, White)
+    scr.blit(txtr, (0,35))
+    txtr = txtFont.render(txt[ll:], 1, White)
+    scr.blit(txtr, (0,55))
+
+    txt = tle.tle[2]
+    txtr = txtFont.render(txt[:ll], 1, White)
+    scr.blit(txtr, (0,80))
+    txtr = txtFont.render(txt[ll:], 1, White)
+    scr.blit(txtr, (0,100))
+
+    txt = tle.date.strftime('%Y-%m-%d %H:%M:%S')
+    txtr = txtFont.render(txt, 1, White)
+    scr.blit(txtr, (0,125))
+
+    screen.blit(scr, scrRect) # display the new surface
+    pygame.display.update()
+
+def pageTLEs():
+  global page
+  print 'TLEs'
+  showTLEs()
+  while page == pageTLEs:
+    if checkEvent(): return
+    sleep(0.1)
+
+#  ----------------------------------------------------------------
+
 def pageDateTime():
   global page
   print 'DateTime'
@@ -782,15 +825,15 @@ def setMenu():
     lx = 20 # left side
     ly = 30 # line position
     lh = 30 # line height
-    Menu.append(menuItem('Auto', (lx,ly),txtFont,Yellow,pageAuto))
+    Menu.append(menuItem('Auto',   (lx,ly),txtFont,Yellow,pageAuto))
     ly += lh
-    Menu.append(menuItem('Demo', (lx,ly),txtFont,Yellow,pageDemo))
+    Menu.append(menuItem('Demo',   (lx,ly),txtFont,Yellow,pageDemo))
     ly += lh
-    Menu.append(menuItem('Sky',  (lx,ly),txtFont,Yellow,pageSky))
+    Menu.append(menuItem('Sky',    (lx,ly),txtFont,Yellow,pageSky))
     ly += lh
     Menu.append(menuItem('Passes', (lx,ly),txtFont,Yellow,pagePasses))
     ly += lh
-    Menu.append(menuItem('GPS',  (lx,ly),txtFont,Yellow,pageMenu))
+    Menu.append(menuItem('GPS',    (lx,ly),txtFont,Yellow,pageMenu))
 
     lx = 160 # right side
     ly = 30 # line position
@@ -799,8 +842,11 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Location', (lx,ly),txtFont,Yellow,pageLocation))
     ly += lh
-    Menu.append(menuItem('Exit',     (lx,ly),txtFont,Yellow,pageExit))
+    Menu.append(menuItem('TLEs',     (lx,ly),txtFont,Yellow,pageTLEs))
     ly += lh
+    ly += lh
+    ly += lh
+    Menu.append(menuItem('Exit',     (lx,ly),txtFont,Orange,pageExit))
     ly += lh
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
@@ -865,6 +911,8 @@ def checkEvent():
                 if item.escapekey:
                     page = lastPage
                     ret = True
+                elif item.page == None:
+                    pass
                 else:
                     page = item.page
                     ret = True
