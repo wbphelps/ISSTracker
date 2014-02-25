@@ -640,7 +640,7 @@ def showPasses(iss, obs, sun):
 
 
 def pagePasses():
-  global page
+  global page, pageHist
   stime = 1
   print 'Passes'
 
@@ -656,7 +656,10 @@ def pagePasses():
     showPasses(iss, obs, sun)
 
     while (page == pagePasses): # wait for a menu selection
-      if checkEvent(): return
+      if checkEvent():
+#        page = pageHist[-1:][0] # last item in list
+        pageHist = pageHist[:-1] # remove this item from history
+        return
       sleep(0.1)
 
 #  ----------------------------------------------------------------
@@ -695,11 +698,14 @@ def showTLEs():
     pygame.display.update()
 
 def pageTLEs():
-  global page
+  global page, pageHist
   print 'TLEs'
   showTLEs()
   while page == pageTLEs:
-    if checkEvent(): return
+    if checkEvent():
+#        page = pageHist[-1:][0] # last item in list
+        pageHist = pageHist[:-1] # remove last item
+        return
     sleep(0.1)
 
 #  ----------------------------------------------------------------
@@ -874,7 +880,7 @@ global menuScrn,  Menu
 
 def checkEvent():
     global page
-    global menuScrn, menuRect, Menu, lastPage
+    global menuScrn, menuRect, Menu, pageHist
 
 #    ev = pygame.event.poll()
     ret = False
@@ -901,7 +907,8 @@ def checkEvent():
 
 #          print "page {}".format(page)
           if page != pageMenu: # other menu pages???
-              lastPage = page # save for escape
+#              lastPage = page # save for escape
+              pageHist.append(page) # add current page to history
               page = pageMenu
               ret = True
           else:
@@ -909,7 +916,8 @@ def checkEvent():
             for item in Menu:
               if item.rect.collidepoint(x,y):
                 if item.escapekey:
-                    page = lastPage
+                    page = pageHist[-1:][0] # last item in list
+                    pageHist = pageHist[:-1] # remove last item
                     ret = True
                 elif item.page == None:
                     pass
@@ -960,6 +968,7 @@ if True:
 
 setMenu() # set up menu
 page = pageAuto
+pageHist = [pageAuto]
 
 while(True):
     page()
