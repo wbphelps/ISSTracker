@@ -12,7 +12,6 @@
 # (c) Copyright 2014 William B. Phelps
 
 import wiringpi2
-#import atexit
 import errno
 import os, sys, signal
 
@@ -33,8 +32,7 @@ from virtualKeyboard import VirtualKeyboard
 from issTLE import issTLE
 from issBlinkStick import BlinkStick
 from checkNet import checkNet
-
-#atexit.register(exit)
+from pyGPS import pyGPS, satInfo
 
 # -------------------------------------------------------------
 
@@ -89,14 +87,19 @@ White = pygame.Color('white')
 def enum(**enums):
     return type('Enum', (), enums)
 
-def signal_handler(signal, frame):
-    global blinkstick_on, BLST
-    print 'SIGNAL {}'.format(signal)
+def Exit():
+    global blinkstick_on, BLST, gps_on
     sleep(1)
     pygame.quit()
     if blinkstick_on:
       BLST.stop()
+    if gps_on:
+      gps.stop()
     sys.exit(0)
+
+def signal_handler(signal, frame):
+    print 'SIGNAL {}'.format(signal)
+    Exit()
 
 def utc_to_local(utc_dt):
     # get integer timestamp to avoid precision lost
@@ -236,6 +239,14 @@ def plotSky(screen, obs, sun):
     plotplanet(ephem.Mars(), obs, screen, pFont, Red, 3)
     plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
     plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
+
+    if gps.statusOK:
+      for sat in gps.satellites:
+        if sat.snr > 0:
+          pygame.draw.circle(screen, (0,255,0), getxy(math.radians(sat.alt), math.radians(sat.azi)), 3, 1)
+        else:
+          pygame.draw.circle(screen, (255,0,0), getxy(math.radians(sat.alt), math.radians(sat.azi)), 3, 1)
+
 
 # ---------------------------------------------------------------------
 
@@ -786,16 +797,33 @@ def pageSky():
             utcNow = datetime.utcnow()
 
 # todo: if ISS was up and has set, find next pass
-    print 'ending'
+#    print 'ending'
     BLST.stop() # stop blinking
 
-  print 'end Sky'
+#  print 'end Sky'
+
+#  ----------------------------------------------------------------
+
+
+
+def pageGPS():
+    global page, pageHist
+    print 'GPS'
+    pageHist = pageHist[:-1] # remove subment item
+    return # temp
+    while (page == pageGPS):
+        if checkEvent():
+            pageHist = pageHist[:-1] # remove subment item
+            return
+        sleep(0.5)
 
 #  ----------------------------------------------------------------
 
 def pageWifi():
     global page, pageHist
     print 'Wifi'
+    pageHist = pageHist[:-1] # remove subment item
+    return # temp
     while (page == pageWifi):
         if checkEvent():
             pageHist = pageHist[:-1] # remove subment item
@@ -806,7 +834,7 @@ def pageWifi():
 
 def pageExit():
     # confirm with a prompt?
-    sys.exit(0)
+    Exit()
 
 def pageShutdown():
     # confirm with a prompt?
@@ -821,7 +849,7 @@ def pageSleep():
             backlight(True)
             pageHist = pageHist[:-1] # remove submenu item
             break
-        sleep(0.5)
+        sleep(1)
 
 #  ----------------------------------------------------------------
 
@@ -859,7 +887,7 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Passes', (lx,ly),txtFont,Yellow,pagePasses))
     ly += lh
-    Menu.append(menuItem('GPS',    (lx,ly),txtFont,Yellow,pageMenu))
+    Menu.append(menuItem('GPS',    (lx,ly),txtFont,Yellow,pageGPS)) # temp
     ly += lh
     ly += lh
     Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Yellow,pageWifi,False,True))
@@ -881,7 +909,7 @@ def setMenu():
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
 def pageMenu():
-    global menuScrn, menuRect, Menu
+    global menuScrn, menuRect, Menu, pageHist
 
     menuScrn = pygame.Surface((320,240)) # use the entire screen for the menu
     menuRect = menuScrn.get_rect()
@@ -896,6 +924,7 @@ def pageMenu():
     screen.blit(menuScrn, menuRect)
     pygame.display.update()
 
+    print 'menu: pageHist {}'.format(len(pageHist))
     while page == pageMenu:
         if checkEvent(): break
 
@@ -950,6 +979,7 @@ def checkEvent():
                     pass
                 else:
                     page = item.page
+#                    pageHist = pageHist[:-1] # remove last item in history
                     ret = True
                 break
 
@@ -985,6 +1015,10 @@ signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
 #print "sigterm handler set"
 
+gps_on = True
+gps = pyGPS()
+gps.start()
+
 #    if opt.blinkstick:
 if True:
     blinkstick_on = True
@@ -995,7 +1029,7 @@ if True:
 
 setMenu() # set up menu
 page = pageAuto
-pageHist = [pageAuto]
+pageHist = []
 
 while(True):
     page()
