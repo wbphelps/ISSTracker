@@ -61,6 +61,7 @@ class pyGPS():
     self.running = False
     self._run = False
     self.statusOK = False
+    self.status = 'x' # 'A' or 'V'
     self.satellites = []
     self.lock = threading.Lock()
     self.latitude = 0
@@ -120,12 +121,13 @@ class pyGPS():
               if (not svn.isdigit()):
                 break;
 #              print 'i: {}, svn: {}'.format(self.i,svn)
-              alt = int(self.ntok())
-              azi = int(self.ntok())
-              snt = self.ntok()
-              snr = 0              
-              if snt.isdigit(): # SN omitted if no signal
-                snr = int(snt)
+              alt, azi, snr = 0,0,0
+              talt = self.ntok()
+              if talt.isdigit(): alt = int(talt)
+              tazi = self.ntok()
+              if tazi.isdigit(): azi = int(tazi)
+              tsnr = self.ntok()
+              if tsnr.isdigit(): snr = int(tsnr)
               sats.append(satInfo(svn,math.radians(alt),math.radians(azi),snr))
             if (msgn == nmsgs): # last gpgsv message?
 #              s1 = ""
@@ -143,8 +145,8 @@ class pyGPS():
           if self.check(self.rcv): # check checksum
             self.i = 6 # start at 1st token
             gtime = self.ntok()[:6]
-            status = self.ntok()
-#            print ("status: " + status)
+            self.status = self.ntok()
+#            print ("status: " + self.status)
             lat = self.ntok()
             if lat.replace('.','',1).isdigit():
               lat = float(lat)
@@ -166,18 +168,18 @@ class pyGPS():
             gdate = self.ntok()
             mag = self.ntok()
             dt = datetime.strptime(gdate+gtime, "%d%m%y%H%M%S") + timedelta(seconds=tz_offset())
-#            print("status: {}, lat: {}, lon: {}, time: {}".format(status, lat, lon, dt))
+#            print("status: {}, lat: {}, lon: {}, time: {}".format(self.status, lat, lon, dt))
             with self.lock:
-              self.status = False
+              self.statusOK = False
               self.lat = math.radians(lat)
               self.lon = math.radians(lon)
               self.datetime = dt
-              if status == 'A':
+              if self.status == 'A':
                 self.statusOK = True
       except:
         print self.rcv
         print ("Error: "),sys.exc_info()[0]
-        self.error = format(sys.exc_into()[0])
+        self.error = format(sys.exc_info()[0])
         raise
     print 'GPS stop'  
 

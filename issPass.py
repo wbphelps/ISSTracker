@@ -1,13 +1,4 @@
-#ISS-Above 12/31/13
-#####################################################
-###           ISS-ABOVE BETA Dec 31 2013          ###
-###              (c) Liam Kennedy                 ###
-###                                               ###
-###   Provided without any warranty of any kind   ###
-###   This software is being release to a select  ###
-###   group of Beta testers only                  ###
-#####################################################
-
+# compute info about next ISS pass
 # (c) Copyright 2014 William B. Phelps
 
 from datetime import datetime, timedelta
@@ -18,7 +9,7 @@ au = 149597871 # Astronimical Unit (km)
     
 def VisualMagnitude(iss, obs, sun):
     #iss.compute(self.obs)
-    if iss.eclipsed :
+    if iss.eclipsed or iss.alt<0: # eclipsed or not up
        return (100) #no valid mag data as the ISS is eclipsed (in the earths shadow)
     sun.compute(obs)
     # SSA Triangle.  We have side a and b and angle C.  Need to solve to find side c
@@ -49,8 +40,8 @@ class ISSPass:
           self.beforesunrise = False
           self.aftersunset = False
           self.alwayseclipsed = True # in this pass is the ISS always eclipsed (in shadow)
-          self.maxalt = 0 # max altitude
-          self.maxmag = 100 # this will hold the highest magnitude
+          self.maxalt = 0 # max altitude for this pass
+          self.maxmag = 100 # brightest magnitude for this pass
           self.visible = False  # is this a visible pass
           self.minrange = 20000  #will hold the closest distance to the observer
 

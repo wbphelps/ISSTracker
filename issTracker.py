@@ -69,6 +69,7 @@ Yellow = pygame.Color('yellow')
 Cyan = pygame.Color('cyan')
 Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
+Black = (0,0,0)
 
 #iss_tle = ('ISS (ZARYA)', 
 #  '1 25544U 98067A   14043.40180105  .00016203  00000-0  28859-3 0  6670',
@@ -194,17 +195,16 @@ def plotplanet( planet, obs, screen, pFont, color, size):
     planet.compute(obs)
 #    print "{} alt: {} az:{}".format(planet.name, math.degrees(planet.alt), math.degrees(planet.az))
     if (planet.alt>0):
-#      pFont = pygame.font.SysFont('Arial', 15, bold=True)
-      txt = pFont.render(planet.name, 1, color)
-      screen.blit(txt, (1,pline))
-      pline += 15
       pygame.draw.circle(screen, color, getxy(planet.alt, planet.az), size, 0)
+      txt = pFont.render(planet.name, 1, color, Black)
+      pline -= 15
+      screen.blit(txt, (1,pline))
 
 def plotSky(screen, obs, sun):
 
     global pline
-    pline = 24
-    pFont = pygame.font.SysFont('Arial', 15, bold=True)
+    pline = 240
+    pFont = pygame.font.SysFont('Arial', 16, bold=True)
 
 #    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
 #      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
@@ -228,25 +228,26 @@ def plotSky(screen, obs, sun):
 #    pygame.draw.circle(screen, (0,0,255), getxy(math.radians(45), math.radians(180)), 5, 1) # blue S
 #    pygame.draw.circle(screen, (255,255,0), getxy(math.radians(45), math.radians(270)), 5, 1) # yellow W
 
-    if (sun.alt>0):
-      pygame.draw.circle(screen, Yellow, getxy(sun.alt, sun.az), 5, 0)
-      txt = pFont.render('Sun', 1, Yellow)
-      screen.blit(txt, (1,pline))
-      pline += 15
+
+    plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
+    plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
+    plotplanet(ephem.Mars(), obs, screen, pFont, Red, 3)
+    plotplanet(ephem.Venus(), obs, screen, pFont, White, 3)
+    plotplanet(ephem.Mercury(), obs, screen, pFont, (128,255,255), 3)
+
     moon = ephem.Moon()
     moon.compute(obs)
     if (moon.alt>0):
       pygame.draw.circle(screen, White, getxy(moon.alt, moon.az), 5, 0)
       txt = pFont.render('Moon', 1, White)
+      pline -= 15
       screen.blit(txt, (1,pline))
-      pline += 15
 
-#def plotplanet(planet, obs, screen, color, size):
-    plotplanet(ephem.Mercury(), obs, screen, pFont, (128,255,255), 3)
-    plotplanet(ephem.Venus(), obs, screen, pFont, White, 3)
-    plotplanet(ephem.Mars(), obs, screen, pFont, Red, 3)
-    plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
-    plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
+    if (sun.alt>0):
+      pygame.draw.circle(screen, Yellow, getxy(sun.alt, sun.az), 5, 0)
+      txt = pFont.render('Sun', 1, Yellow)
+      pline -= 15
+      screen.blit(txt, (1,pline))
 
 # ---------------------------------------------------------------------
 
@@ -361,21 +362,21 @@ def setupSky(issp, obs, iss, sun):
     sunaltd = math.degrees(sun.alt)
 #    print "sun alt {}".format(sunaltd)
     if (sunaltd > 0):
-        bgcolor = (64,64,128) # daytime
+        bgColor = (32,32,92) # daytime
     elif (sunaltd > -15): # twilight ???
-        bgcolor = (32,32,92)
+        bgColor = (16,16,64)
     else:
-        bgcolor = (0,0,0)
+        bgColor = (0,0,0)
 
-    pygame.draw.circle(bg, bgcolor, (160,120), 120, 0)
+    pygame.draw.circle(bg, bgColor, (160,120), 120, 0)
     pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
 
     if issp.daytimepass:
         viscolor = Yellow # yellow
     else:
         viscolor = White # white
-    if (len(nvis)>0):  pygame.draw.lines(bg, (0,127,255), False, nvis, 1)
-    if (len(vis)>0):  pygame.draw.lines(bg, viscolor, False, vis, 1)
+    if (len(nvis)>1):  pygame.draw.lines(bg, (0,127,255), False, nvis, 1)
+    if (len(vis)>1):  pygame.draw.lines(bg, viscolor, False, vis, 1)
 
     txtColor = Cyan
     txtFont = pygame.font.SysFont("Arial", 14, bold=True)
@@ -399,7 +400,7 @@ def showSky(utcNow, issp, obs, iss, sun):
     txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
 
-    vmag=VisualMagnitude( iss, obs, sun)
+    vmag=VisualMagnitude(iss, obs, sun)
     issalt = math.degrees(iss.alt)
     issaz = math.degrees(iss.az)
 
@@ -411,7 +412,7 @@ def showSky(utcNow, issp, obs, iss, sun):
     t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
     t1 = txtFont.render(t1, 1, txtColor)
 
-    if (issalt>0): # if ISS is up, show the time left before it  will set
+    if (issalt>0): # if ISS is up, show the time left before it will set
       td = issp.settime - obs.date
       tds = timedelta(td).total_seconds()
       t2 = "%02d:%02d" % (tds//60, tds%60)
@@ -419,9 +420,9 @@ def showSky(utcNow, issp, obs, iss, sun):
       td = issp.risetime - obs.date
       tds = timedelta(td).total_seconds()
       t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
-
     t2 = txtFont.render(t2, 1, txtColor)
 
+    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
     if (vmag<99):
       tmag = "{:5.1f}".format(vmag)
     else:
@@ -436,17 +437,23 @@ def showSky(utcNow, issp, obs, iss, sun):
     trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
     tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
 
-    talt = txtFont.render("{:0>3.0f}".format(issalt) , 1, txtColor)
-    tazi = txtFont.render("{:0>3.0f}".format(issaz) , 1, txtColor)
+    talt = txtFont.render("{:3.0f}".format(issalt) , 1, txtColor)
+    tazi = txtFont.render("{:3.0f}".format(issaz) , 1, txtColor)
     tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
 
     screen.blit(bg, bgRect)
 
     plotSky(screen, obs, sun)
 
-    screen.blit(tmag, (0,180))
-    screen.blit(talt, (6,200))
-    screen.blit(tazi, (6,220))
+#    screen.blit(tmag, (0,24))
+#    screen.blit(talt, (6,44))
+#    screen.blit(tazi, (6,64))
+    rect = tmag.get_rect()
+    screen.blit(tmag, (320 - rect.width, 160))
+    rect = talt.get_rect()
+    screen.blit(talt, (320 - rect.width, 180))
+    rect = tazi.get_rect()
+    screen.blit(tazi, (320 - rect.width, 200))
 
     screen.blit(t1, (0, 0))
     rect = t2.get_rect()
@@ -647,7 +654,7 @@ def showPasses(iss, obs, sun):
 
 
 def pagePasses():
-  global page, pageHist
+  global page, pageLast
   stime = 1
   print 'Passes'
 
@@ -664,8 +671,6 @@ def pagePasses():
 
     while (page == pagePasses): # wait for a menu selection
       if checkEvent():
-#        page = pageHist[-1:][0] # last item in list
-        pageHist = pageHist[:-1] # remove this item from history
         return
       sleep(0.1)
 
@@ -705,13 +710,11 @@ def showTLEs():
     pygame.display.update()
 
 def pageTLEs():
-  global page, pageHist
+  global page
   print 'TLEs'
   showTLEs()
   while page == pageTLEs:
     if checkEvent():
-#        page = pageHist[-1:][0] # last item in list
-        pageHist = pageHist[:-1] # remove last item
         return
     sleep(0.1)
 
@@ -812,7 +815,7 @@ def pageSky():
 # ---------------------------------------------------------------------
 
 def setupGPS(obs, iss, sun):
-    global bg, issImg, issRect
+    global bg, issImg, issRect, bgColor
 
     bg = pygame.image.load("ISSTracker7Dim.png")
     bgRect = bg.get_rect()
@@ -820,13 +823,13 @@ def setupGPS(obs, iss, sun):
     sunaltd = math.degrees(sun.alt)
 #    print "sun alt {}".format(sunaltd)
     if (sunaltd > 0):
-        bgcolor = (64,64,128) # daytime
+        bgColor = (32,32,92) # daytime
     elif (sunaltd > -15): # twilight ???
-        bgcolor = (32,32,92)
+        bgColor = (16,16,64)
     else:
-        bgcolor = (0,0,0)
+        bgColor = (0,0,0)
 
-    pygame.draw.circle(bg, bgcolor, (160,120), 120, 0)
+    pygame.draw.circle(bg, bgColor, (160,120), 120, 0)
     pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
 
     txtColor = Cyan
@@ -850,9 +853,9 @@ def showGPS(utcNow, obs, iss, sun):
 
 #    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
 #    t1 = utc_to_local(gps.datetime).strftime('%H:%M:%S')
-    t1 = gps.datetime.strftime('%y-%m-%d')
+    t1 = gps.datetime.strftime('%H:%M:%S') # time
     t1 = txtFont.render(t1, 1, txtColor)
-    t2 = gps.datetime.strftime('%H:%M:%S')
+    t2 = gps.datetime.strftime('%y-%m-%d') # date
     t2 = txtFont.render(t2, 1, txtColor)
 
     tlat = '{:6.4f}'.format(math.degrees(gps.lat))
@@ -875,7 +878,8 @@ def showGPS(utcNow, obs, iss, sun):
 
     satFont = pygame.font.SysFont("Arial", 10, bold=True)
 
-    if gps.statusOK:
+#    if gps.statusOK:
+    if True:
       ns = 0
       nsa = 0
       for sat in gps.satellites:
@@ -888,29 +892,24 @@ def showGPS(utcNow, obs, iss, sun):
         else:       color = Green
         if sz<9: sz = 9 # minimum circle size
         pygame.draw.circle(screen, color, xy, sz, 1)
-        t1 = satFont.render(format(sat.svn), 1, White)
+        t1 = satFont.render(format(sat.svn), 1, White, bgColor) 
         t1pos = t1.get_rect()
         t1pos.centerx = xy[0]
         t1pos.centery = xy[1]
         screen.blit(t1,t1pos)
+      t1 = txtFont.render(gps.status, 1, txtColor)
+      screen.blit(t1,(1,24))
       t1 = '{:0>2}/{:2}'.format(nsa, ns)
       t1 = txtFont.render(t1, 1, txtColor)
-      screen.blit(t1,(0,220))
+      screen.blit(t1,(1,44))
 
     pygame.display.flip()
 
 #  ----------------------------------------------------------------
 
 def pageGPS():
-  global page, pageHist
+  global page
   print 'GPS'
-#  pageHist = pageHist[:-1] # remove subment item
-#  return # temp
-#  while (page == pageGPS):
-#    if checkEvent():
-#      pageHist = pageHist[:-1] # remove subment item
-#      return
-#    sleep(0.5)
 
   utcNow = datetime.utcnow()
   obs.date = utcNow
@@ -934,13 +933,12 @@ def pageGPS():
 #  ----------------------------------------------------------------
 
 def pageWifi():
-  global page, pageHist
+  global page
   print 'Wifi'
-  pageHist = pageHist[:-1] # remove subment item
+  page = pageMenu # temp
   return # temp
   while (page == pageWifi):
     if checkEvent():
-      pageHist = pageHist[:-1] # remove subment item
       return
       sleep(0.5)
 
@@ -955,13 +953,12 @@ def pageShutdown():
     Shutdown()
 
 def pageSleep():
-    global page, pageHist
+    global page
     print 'Sleep'
     backlight(False)
     while (page == pageSleep):
         if checkEvent():
             backlight(True)
-            pageHist = pageHist[:-1] # remove submenu item
             break
         sleep(1)
 
@@ -1021,7 +1018,7 @@ def setMenu():
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
 def pageMenu():
-    global menuScrn, menuRect, Menu, pageHist
+    global menuScrn, menuRect, Menu
 
     menuScrn = pygame.Surface((320,240)) # use the entire screen for the menu
     menuRect = menuScrn.get_rect()
@@ -1036,7 +1033,6 @@ def pageMenu():
     screen.blit(menuScrn, menuRect)
     pygame.display.update()
 
-    print 'menu: pageHist {}'.format(len(pageHist))
     while page == pageMenu:
         if checkEvent(): break
 
@@ -1045,7 +1041,7 @@ global menuScrn,  Menu
 
 def checkEvent():
     global page
-    global menuScrn, menuRect, Menu, pageHist
+    global menuScrn, menuRect, Menu, pageLast
 
 #    ev = pygame.event.poll()
     ret = False
@@ -1057,7 +1053,7 @@ def checkEvent():
 #    print "ev: {}".format(ev)
 
         if (ev.type == pygame.MOUSEBUTTONDOWN):
-          print "mouse dn, x,y = {}, page={}".format(ev.pos,page)
+#          print "mouse dn, x,y = {}, page={}".format(ev.pos,page)
           x,y = ev.pos
           if page == pageMenu: # what numerical value ???
             for item in Menu:
@@ -1067,13 +1063,12 @@ def checkEvent():
             pygame.display.update()
 
         if (ev.type == pygame.MOUSEBUTTONUP):
-          print "mouse up, x,y = {}".format(ev.pos)
+#          print "mouse up, x,y = {}".format(ev.pos)
           x,y = ev.pos
 
 #          print "page {}".format(page)
           if page != pageMenu: # other menu pages???
-#              lastPage = page # save for escape
-              pageHist.append(page) # add current page to history
+              pageLast = page # for escape key
               page = pageMenu
               ret = True
           else:
@@ -1081,8 +1076,7 @@ def checkEvent():
             for item in Menu:
               if item.rect.collidepoint(x,y):
                 if item.escapekey:
-                    page = pageHist[-1:][0] # last item in list
-                    pageHist = pageHist[:-1] # remove last item
+                    page = pageLast
                     ret = True
 #                if item.subMenu:
 #                    item.page() # call it now
@@ -1091,7 +1085,6 @@ def checkEvent():
                     pass
                 else:
                     page = item.page
-#                    pageHist = pageHist[:-1] # remove last item in history
                     ret = True
                 break
 
@@ -1143,7 +1136,6 @@ if True:
 
 setMenu() # set up menu
 page = pageAuto
-pageHist = []
 
 while(True):
   try:
