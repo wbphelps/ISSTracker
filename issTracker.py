@@ -11,9 +11,11 @@
 #
 # (c) Copyright 2014 William B. Phelps
 
+#import atexit
 import wiringpi2
 import errno
 import os, sys, signal
+import traceback
 
 import pygame
 from pygame.locals import *
@@ -87,14 +89,20 @@ White = pygame.Color('white')
 def enum(**enums):
     return type('Enum', (), enums)
 
-def Exit():
+def StopAll():
+    print 'StopAll'
     global blinkstick_on, BLST, gps_on
     sleep(1)
-    pygame.quit()
-    if blinkstick_on:
-      BLST.stop()
     if gps_on:
       gps.stop()
+    sleep(1)
+    if blinkstick_on:
+      BLST.stop()
+    pygame.quit()
+
+def Exit():
+    print 'Exit'
+    StopAll()
     sys.exit(0)
 
 def signal_handler(signal, frame):
@@ -240,14 +248,6 @@ def plotSky(screen, obs, sun):
     plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
     plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
 
-    if gps.statusOK:
-      for sat in gps.satellites:
-        if sat.snr > 0:
-          pygame.draw.circle(screen, (0,255,0), getxy(math.radians(sat.alt), math.radians(sat.azi)), 3, 1)
-        else:
-          pygame.draw.circle(screen, (255,0,0), getxy(math.radians(sat.alt), math.radians(sat.azi)), 3, 1)
-
-
 # ---------------------------------------------------------------------
 
 def setupInfo():
@@ -288,7 +288,7 @@ def showInfo(utcNow, issp, obs, iss, sun):
     txtFont = pygame.font.SysFont("Arial", 26, bold=True)
     screen.blit(bg, bgRect) # write background image
 
-    tn = utc_to_local(utcNow).strftime('%T')
+    tn = utc_to_local(utcNow).strftime('%H:%M:%S')
     tn = txtFont.render(tn, 1, Orange) # show current time
     rect = tn.get_rect()
     screen.blit(tn, (320 - rect.width, line0))
@@ -407,8 +407,8 @@ def showSky(utcNow, issp, obs, iss, sun):
       BLST.set(vmag, issalt, 10)
       BLST.start()
 
-#    t1 = ephem.localtime(obs.date).strftime("%T")
-    t1 = utc_to_local(utcNow).strftime('%T')
+#    t1 = ephem.localtime(obs.date).strftime("%H:%M:%S")
+    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
     t1 = txtFont.render(t1, 1, txtColor)
 
     if (issalt>0): # if ISS is up, show the time left before it  will set
@@ -802,33 +802,143 @@ def pageSky():
 
 #  print 'end Sky'
 
+# ---------------------------------------------------------------------
+
+def setupGPS(obs, iss, sun):
+    global bg, issImg, issRect
+
+    bg = pygame.image.load("ISSTracker7Dim.png")
+    bgRect = bg.get_rect()
+
+    sunaltd = math.degrees(sun.alt)
+#    print "sun alt {}".format(sunaltd)
+    if (sunaltd > 0):
+        bgcolor = (96,96,128)
+    elif (sunaltd > -15): # twilight ???
+        bgcolor = (64,64,92)
+    else:
+        bgcolor = (0,0,0)
+
+    pygame.draw.circle(bg, bgcolor, (160,120), 120, 0)
+    pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
+
+    txtColor = Cyan
+    txtFont = pygame.font.SysFont("Arial", 14, bold=True)
+    txt = txtFont.render("N" , 1, txtColor)
+    bg.blit(txt, (155, 0))
+    txt = txtFont.render("S" , 1, txtColor)
+    bg.blit(txt, (155, 222))
+    txt = txtFont.render("E" , 1, txtColor)
+    bg.blit(txt, (43, 112))
+    txt = txtFont.render("W" , 1, txtColor)
+    bg.blit(txt, (263, 112))
+
+    pygame.display.update()
+
+def showGPS(utcNow, obs, iss, sun):
+    global bg, issImg, issRect, BLST
+
+    txtColor = Yellow
+    txtFont = pygame.font.SysFont("Arial", 20, bold=True)
+
+#    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
+#    t1 = utc_to_local(gps.datetime).strftime('%H:%M:%S')
+    t1 = gps.datetime.strftime('%y-%m-%d')
+    t1 = txtFont.render(t1, 1, txtColor)
+    t2 = gps.datetime.strftime('%H:%M:%S')
+    t2 = txtFont.render(t2, 1, txtColor)
+
+    tlat = '{:6.4f}'.format(math.degrees(gps.lat))
+    tlat = txtFont.render(tlat, 1, txtColor)
+    tlon = '{:6.4f}'.format(math.degrees(gps.lon))
+    tlon = txtFont.render(tlon, 1, txtColor)
+
+    screen.blit(bg, bgRect)
+
+    screen.blit(t1, (0, 0))
+    rect = t2.get_rect()
+    screen.blit(t2, (320 - rect.width, 0))
+
+    rect = tlat.get_rect()
+    screen.blit(tlat, (320 - rect.width, 200))
+    rect = tlon.get_rect()
+    screen.blit(tlon, (320 - rect.width, 220))
+
+    plotSky(screen, obs, sun)
+
+    satFont = pygame.font.SysFont("Arial", 10, bold=True)
+
+    if gps.statusOK:
+      ns = 0
+      nsa = 0
+      for sat in gps.satellites:
+        xy = getxy(sat.alt,sat.azi)
+        ns += 1
+        sz = sat.snr
+        if sz>0: nsa += 1
+        if sz<9: # minimum circle size
+          if sz<5: color = Red # no signal
+          sz = 9
+        elif sz<20:
+          color = Yellow
+        else:
+          color = Green
+        pygame.draw.circle(screen, color, xy, sz, 1)
+        t1 = satFont.render(format(sat.svn), 1, White)
+        t1pos = t1.get_rect()
+        t1pos.centerx = xy[0]
+        t1pos.centery = xy[1]
+        screen.blit(t1,t1pos)
+      t1 = '{:0>2}/{:2}'.format(nsa, ns)
+      t1 = txtFont.render(t1, 1, txtColor)
+      screen.blit(t1,(0,220))
+
+    pygame.display.flip()
+
 #  ----------------------------------------------------------------
 
-
-
 def pageGPS():
-    global page, pageHist
-    print 'GPS'
-    pageHist = pageHist[:-1] # remove subment item
-    return # temp
-    while (page == pageGPS):
-        if checkEvent():
-            pageHist = pageHist[:-1] # remove subment item
-            return
-        sleep(0.5)
+  global page, pageHist
+  print 'GPS'
+#  pageHist = pageHist[:-1] # remove subment item
+#  return # temp
+#  while (page == pageGPS):
+#    if checkEvent():
+#      pageHist = pageHist[:-1] # remove subment item
+#      return
+#    sleep(0.5)
+
+  utcNow = datetime.utcnow()
+  obs.date = utcNow
+  sun = ephem.Sun(obs)
+  iss.compute(obs)
+  setupGPS(obs, iss, sun) # set up the GPS display screen
+  # show the sky with GPS positions & signal
+  while page == pageGPS:
+#    utcNow = datetime.utcnow()
+    obs.date = utcNow # update observer time
+    iss.compute(obs) # compute new position
+    sun = ephem.Sun(obs) # recompute the sun
+    showGPS(utcNow, obs, iss, sun)
+#    while (datetime.utcnow()-utcNow).total_seconds() < stime:
+    sec = utcNow.second
+    while sec == utcNow.second: # wait for clock to tic
+      if checkEvent(): break
+      sleep(0.1)
+      utcNow = datetime.utcnow()
 
 #  ----------------------------------------------------------------
 
 def pageWifi():
-    global page, pageHist
-    print 'Wifi'
-    pageHist = pageHist[:-1] # remove subment item
-    return # temp
-    while (page == pageWifi):
-        if checkEvent():
-            pageHist = pageHist[:-1] # remove subment item
-            return
-        sleep(0.5)
+  global page, pageHist
+  print 'Wifi'
+  pageHist = pageHist[:-1] # remove subment item
+  return # temp
+  while (page == pageWifi):
+    if checkEvent():
+      pageHist = pageHist[:-1] # remove subment item
+      return
+      sleep(0.5)
 
 #  ----------------------------------------------------------------
 
@@ -991,6 +1101,8 @@ def checkEvent():
 logging.basicConfig(filename='/home/pi/isstracker/isstracker.log',filemode='w',level=logging.DEBUG)
 logging.info("ISS-Tracker System Startup")
 
+#atexit.register(Exit)
+
 net = checkNet()
 if net.up:
     logging.info("Network up {}".format(net.interface))
@@ -1015,9 +1127,9 @@ signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
 #print "sigterm handler set"
 
-gps_on = True
 gps = pyGPS()
 gps.start()
+gps_on = True
 
 #    if opt.blinkstick:
 if True:
@@ -1032,4 +1144,14 @@ page = pageAuto
 pageHist = []
 
 while(True):
+  try:
     page()
+  except SystemExit:
+    print 'SystemExit'
+    sys.exit(0)
+  except:
+    print '"Except:', sys.exc_info()[0]
+    page = None
+#    print traceback.format_exc()
+    StopAll()
+    raise

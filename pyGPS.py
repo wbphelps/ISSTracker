@@ -1,6 +1,7 @@
 import time, serial, sys
 from datetime import datetime, timedelta
 import threading
+import math
 
 ''' NMEA Message formats
 
@@ -125,14 +126,14 @@ class pyGPS():
               snr = 0              
               if snt.isdigit(): # SN omitted if no signal
                 snr = int(snt)
-              sats.append(satInfo(svn,alt,azi,snr))
+              sats.append(satInfo(svn,math.radians(alt),math.radians(azi),snr))
             if (msgn == nmsgs): # last gpgsv message?
-              s1 = ""
-              ns = 0
-              for sat in sats:
-                if (sat.snr>0):
-                  ns += 1
-                  s1 = s1 + "{}:{},{},{}, ".format(sat.svn,sat.alt,sat.azi,sat.snr)
+#              s1 = ""
+#              ns = 0
+#              for sat in sats:
+#                if (sat.snr>0):
+#                  ns += 1
+#                  s1 = s1 + "{}:{},{},{}, ".format(sat.svn,sat.alt,sat.azi,sat.snr)
 #              print('{:0>2}/{:2} sats {!s}'.format(ns, nsats, s1))
               with self.lock:
                 self.satellites = sats
@@ -168,17 +169,17 @@ class pyGPS():
 #            print("status: {}, lat: {}, lon: {}, time: {}".format(status, lat, lon, dt))
             with self.lock:
               self.status = False
-              self.lat = lat
-              self.lon = lon
+              self.lat = math.radians(lat)
+              self.lon = math.radians(lon)
               self.datetime = dt
               if status == 'A':
                 self.statusOK = True
       except:
         print self.rcv
-        print ("Error: "),sys.exec_info()[0]
-        self.error = sys.exec_into()[0]
+        print ("Error: "),sys.exc_info()[0]
+        self.error = format(sys.exc_into()[0])
         raise
-      
+    print 'GPS stop'  
 
   def start(self):
     with self.lock:
