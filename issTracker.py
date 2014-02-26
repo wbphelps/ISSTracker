@@ -361,9 +361,9 @@ def setupSky(issp, obs, iss, sun):
     sunaltd = math.degrees(sun.alt)
 #    print "sun alt {}".format(sunaltd)
     if (sunaltd > 0):
-        bgcolor = (96,96,128)
+        bgcolor = (64,64,128) # daytime
     elif (sunaltd > -15): # twilight ???
-        bgcolor = (64,64,128)
+        bgcolor = (32,32,92)
     else:
         bgcolor = (0,0,0)
 
@@ -723,7 +723,11 @@ def pageDateTime():
   while page == pageDateTime:
     if checkEvent(): return
     mykeys = VirtualKeyboard()
-    txt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if gps_on and gps.statusOK:
+      tn = gps.datetime + timedelta(seconds=5) # set ahead a bit
+    else:
+      tn = datetime.now() + timedelta(seconds=5) # set ahead a bit
+    txt = tn.strftime('%Y-%m-%d %H:%M:%S')
     txt = mykeys.run(screen, txt)
     print 'datetime: ' + txt
     try:
@@ -744,7 +748,10 @@ def pageLocation():
   while page == pageLocation:
     if checkEvent(): return
     mykeys = VirtualKeyboard()
-    txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
+    if gps_on and gps.statusOK:
+        txt = '{:6.4f}, {:6.4f}'.format(math.degrees(gps.lat),math.degrees(gps.lon))
+    else:
+        txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
     txt = mykeys.run(screen, txt)
     try:
         print 'Location: {}'.format(txt)
@@ -813,9 +820,9 @@ def setupGPS(obs, iss, sun):
     sunaltd = math.degrees(sun.alt)
 #    print "sun alt {}".format(sunaltd)
     if (sunaltd > 0):
-        bgcolor = (96,96,128)
+        bgcolor = (64,64,128) # daytime
     elif (sunaltd > -15): # twilight ???
-        bgcolor = (64,64,92)
+        bgcolor = (32,32,92)
     else:
         bgcolor = (0,0,0)
 
@@ -876,13 +883,10 @@ def showGPS(utcNow, obs, iss, sun):
         ns += 1
         sz = sat.snr
         if sz>0: nsa += 1
-        if sz<9: # minimum circle size
-          if sz<5: color = Red # no signal
-          sz = 9
-        elif sz<20:
-          color = Yellow
-        else:
-          color = Green
+        if sz<5:    color = Red # no signal
+        elif sz<20: color = Yellow
+        else:       color = Green
+        if sz<9: sz = 9 # minimum circle size
         pygame.draw.circle(screen, color, xy, sz, 1)
         t1 = satFont.render(format(sat.svn), 1, White)
         t1pos = t1.get_rect()
@@ -962,8 +966,6 @@ def pageSleep():
         sleep(1)
 
 #  ----------------------------------------------------------------
-
-#pages = enum(Auto=0,Demo=1,Sky=2,Passes=3,GPS=4,Keybd=5,Menu=10,Location=11,Date=12,Exit=13,Shutdown=14)
 
 class menuItem():
     def __init__(self,caption,position,font,color,page,escapeKey=False,subMenu=False):
