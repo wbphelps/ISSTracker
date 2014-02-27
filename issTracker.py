@@ -858,6 +858,15 @@ def showGPS(utcNow, obs, iss, sun):
     t2 = gps.datetime.strftime('%y-%m-%d') # date
     t2 = txtFont.render(t2, 1, txtColor)
 
+    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
+
+    alt = gps.altitude + gps.geodiff
+    if alt<100:
+      talt = '{:6.1f}m'.format(alt)
+    else:
+      talt = '{:6.0f}m'.format(alt)
+    talt = txtFont.render(talt, 1, txtColor)
+
     tlat = '{:6.4f}'.format(math.degrees(gps.lat))
     tlat = txtFont.render(tlat, 1, txtColor)
     tlon = '{:6.4f}'.format(math.degrees(gps.lon))
@@ -869,6 +878,8 @@ def showGPS(utcNow, obs, iss, sun):
     rect = t2.get_rect()
     screen.blit(t2, (320 - rect.width, 0))
 
+    rect = talt.get_rect()
+    screen.blit(talt, (320 - rect.width, 180))
     rect = tlat.get_rect()
     screen.blit(tlat, (320 - rect.width, 200))
     rect = tlon.get_rect()
@@ -878,11 +889,12 @@ def showGPS(utcNow, obs, iss, sun):
 
     satFont = pygame.font.SysFont("Arial", 10, bold=True)
 
+# TODO: detect collision and move label
 #    if gps.statusOK:
     if True:
       ns = 0
       nsa = 0
-      for sat in gps.satellites:
+      for sat in gps.satellites: # plot all GPS satellites on sky chart
         xy = getxy(sat.alt,sat.azi)
         ns += 1
         sz = sat.snr
@@ -897,11 +909,11 @@ def showGPS(utcNow, obs, iss, sun):
         t1pos.centerx = xy[0]
         t1pos.centery = xy[1]
         screen.blit(t1,t1pos)
-      t1 = txtFont.render(gps.status, 1, txtColor)
-      screen.blit(t1,(1,24))
-      t1 = '{:0>2}/{:2}'.format(nsa, ns)
+      t1 = '{:0>2}/{:0>2}'.format(nsa, ns)
       t1 = txtFont.render(t1, 1, txtColor)
       screen.blit(t1,(1,44))
+      t1 = txtFont.render(gps.status, 1, txtColor)
+      screen.blit(t1,(1,24))
 
     pygame.display.flip()
 

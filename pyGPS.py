@@ -16,6 +16,24 @@ import math
   020.3,E      Magnetic variation 20.3 deg East
   *68          mandatory checksum
 
+  $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh
+  1    = UTC of Position
+  2    = Latitude
+  3    = N or S
+  4    = Longitude
+  5    = E or W
+  6    = GPS quality indicator (0=invalid; 1=GPS fix; 2=Diff. GPS fix)
+  7    = Number of satellites in use [not those in view]
+  8    = Horizontal dilution of position
+  9    = Antenna altitude above/below mean sea level (geoid)
+  10   = Meters  (Antenna height unit)
+  11   = Geoidal separation (Diff. between WGS-84 earth ellipsoid and
+         mean sea level.  -=geoid is below WGS-84 ellipsoid)
+  12   = Meters  (Units of geoidal separation)
+  13   = Age in seconds since last update from diff. reference station
+  14   = Diff. reference station ID#
+  15   = Checksum
+
   $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74
   $GPGSV,3,2,11,14,25,170,00,16,57,208,39,18,67,296,40,19,40,246,00*74
   $GPGSV,3,3,11,22,42,067,42,24,14,311,43,27,05,244,00,,,,*4D
@@ -71,6 +89,9 @@ class pyGPS():
     self.rcv = '' # buffer
     self.i = 0 # buffer index
     self.error = ''
+    self.quality = 0
+    self.altitude = 0
+    self.geodiff = 0
 
   def check(self,rcv):
     # calculate checksum
@@ -106,6 +127,46 @@ class pyGPS():
     while self._run:
       self.rcv = self.port.readline()
       try:
+
+#  $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,q,ns,h.d,a.a,M,x.x,M,x.x,xxxx*hh
+        if (self.rcv[:7] == '$GPGGA,'):
+          self.rcv = self.rcv[1:] # remove $
+#          print("rcv:" + repr(self.rcv))
+          if self.check(self.rcv): # check checksum
+            self.i = 6 # start at 1st token
+            gtime = self.ntok()[:6]
+            lat = self.ntok()
+            latD = self.ntok()
+            lon = self.ntok()
+            lonD = self.ntok()
+            quality = self.ntok()
+            nsats = self.ntok()
+            hDilution = self.ntok()
+            alt = self.ntok()
+            altu = self.ntok()
+            gdiff = self.ntok()
+            gdiffu = self.ntok()
+#            print 't: {}, q: {}, alt: {}'.format(gtime,quality, alt)
+            if quality>'0':
+#              print 'alt:{}'.format(alt)
+              altitude = 0
+              if alt.replace('.','',1).isdigit():
+                altitude = float(alt)
+              geodiff = 0
+              if gdiff.replace('.','',1).isdigit():
+                geodiff = float(gdiff)
+              with self.lock:
+                self.quality = quality
+                self.altitude = altitude
+                self.geodiff = geodiff
+#              if gtime == '':
+#                print("quality: {}, lat: {}{}, lon: {}{}, time: {}".format(quality,  latD, lat, lonD, lon, 0))
+#              else:
+#                print 'gtime: "{}"'.format(gtime)
+#                t = datetime.strptime(gtime, "%H%M%S")
+#                print("quality: {}, lat: {}{}, lon: {}{}, alt {}{}, gdiff {}{}, time: {}".format(quality,  latD, lat,
+#                  lonD, lon, alt, altu, gdiff, gdiffu, t))
+
         if (self.rcv[:7] == '$GPGSV,'): # satellite info
           self.rcv = self.rcv[1:] # remove $
 #          print("rcv:" + repr(self.rcv))
@@ -135,10 +196,11 @@ class pyGPS():
 #              for sat in sats:
 #                if (sat.snr>0):
 #                  ns += 1
-#                  s1 = s1 + "{}:{},{},{}, ".format(sat.svn,sat.alt,sat.azi,sat.snr)
+#                  s1 = s1 + "{}:{},{},{}, ".format(sat.svn,math.degrees(sat.alt),math.degrees(sat.azi),sat.snr)
 #              print('{:0>2}/{:2} sats {!s}'.format(ns, nsats, s1))
               with self.lock:
                 self.satellites = sats
+
         if (self.rcv[:7] == '$GPRMC,'): # required miminum 
           self.rcv = self.rcv[1:] # remove $
 #          print("rcv:" + repr(self.rcv))
