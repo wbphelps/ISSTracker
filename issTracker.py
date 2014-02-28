@@ -203,7 +203,7 @@ def plotplanet( planet, obs, screen, pFont, color, size):
 def plotSky(screen, obs, sun):
 
     global pline
-    pline = 240
+    pline = 235
     pFont = pygame.font.SysFont('Arial', 16, bold=True)
 
 #    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
@@ -320,18 +320,23 @@ def showInfo(utcNow, issp, obs, iss, sun):
     txt = txtFont.render("{:0.0f} km".format(issp.minrange) , 1, txtColor)
     screen.blit(txt, (col2, line5))
 
-#    time_until_pass= ephem.localtime(issp.risetime)-datetime.now()
-#    text='Pass in %s ' % timedelta(seconds=time_until_pass.seconds)
+    tds = timedelta(issp.risetime - obs.date).total_seconds() # seconds until ISS rises
 
-    td = issp.risetime - obs.date
-    tds = timedelta(td).total_seconds()
-
-    if tds > 3600: tnc = Red
-    elif tds > 100: tnc = Yellow
-    else: tnc = Green
+    bkg = Black
+    if tds > 3600: tnc = Red # more than an hour
+    elif tds > 600: tnc = Yellow # more than 10 minutes
+    elif tds > 180: tnc = Green  # more than 3 minutes
+    else:
+#      if int(tds)%2: 
+      if datetime.now().second%2: # blink the time
+        tnc = Green # odd seconds
+        bkg = Black 
+      else:
+        tnc = Black # alternate colors
+        bkg = Green 
 
     t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
-    txt = txtFont.render(t2 , 1, tnc)
+    txt = txtFont.render(t2 , 1, tnc, bkg)
     screen.blit(txt, (col2, line6))
 
     pygame.display.flip()
@@ -565,19 +570,18 @@ def pageDemo():
         setupInfo() # set up Info display
     # wait for ISS to rise
         while page == pageDemo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
-            utcNow = utcNow + timedelta(seconds=1)
             obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
             showInfo(utcNow, issp, obs, iss, sun)
             if checkEvent(): return
             sleep(0.1)
+            utcNow = utcNow + timedelta(seconds=1)
 
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
     setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageDemo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
-        utcNow = utcNow + timedelta(seconds=1)
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
@@ -585,6 +589,7 @@ def pageDemo():
         if checkEvent():
             break # don't forget to stop blinking
         sleep(0.1)
+        utcNow = utcNow + timedelta(seconds=1)
 
     BLST.stop() # stop blinking
 
@@ -895,6 +900,7 @@ def showGPS(utcNow, obs, iss, sun):
       ns = 0
       nsa = 0
       for sat in gps.satellites: # plot all GPS satellites on sky chart
+        if (sat.alt,sat.azi) == (0,0): pass
         xy = getxy(sat.alt,sat.azi)
         ns += 1
         sz = sat.snr
@@ -912,7 +918,7 @@ def showGPS(utcNow, obs, iss, sun):
       t1 = '{:0>2}/{:0>2}'.format(nsa, ns)
       t1 = txtFont.render(t1, 1, txtColor)
       screen.blit(t1,(1,44))
-      t1 = txtFont.render(gps.status, 1, txtColor)
+      t1 = txtFont.render(gps.status + '/' + gps.quality, 1, txtColor)
       screen.blit(t1,(1,24))
 
     pygame.display.flip()
