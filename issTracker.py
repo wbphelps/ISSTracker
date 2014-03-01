@@ -12,6 +12,7 @@
 # (c) Copyright 2014 William B. Phelps
 
 #import atexit
+import gc
 import wiringpi2
 import errno
 import os, sys, signal
@@ -22,8 +23,7 @@ from pygame.locals import *
 
 from time import sleep
 from datetime import datetime, timedelta
-import calendar
-import ephem, ephem.stars
+import ephem #, ephem.stars
 import math
 from issPass import ISSPass, VisualMagnitude
 import logging
@@ -39,18 +39,6 @@ from pyGPS import pyGPS, satInfo
 # -------------------------------------------------------------
 
 backlightpin = 252
-
-col1 = 16
-col2 = 115
-
-lsize = 28
-line0 = 15
-line1 = 20+lsize
-line2 = line1+lsize
-line3 = line2+lsize
-line4 = line3+lsize
-line5 = line4+lsize
-line6 = line5+lsize
 
 # set up observer location
 obs = ephem.Observer()
@@ -109,13 +97,6 @@ def Exit():
 def signal_handler(signal, frame):
     print 'SIGNAL {}'.format(signal)
     Exit()
-
-def utc_to_local(utc_dt):
-    # get integer timestamp to avoid precision lost
-    timestamp = calendar.timegm(utc_dt.timetuple())
-    local_dt = datetime.fromtimestamp(timestamp)
-    assert utc_dt.resolution >= timedelta(microseconds=1)
-    return local_dt.replace(microsecond=utc_dt.microsecond)
 
 def backlight(set):
     os.system("echo 252 > /sys/class/gpio/export")
@@ -190,8 +171,7 @@ def plotstar(name, screen, obs):
       pygame.draw.circle(screen, White, getxy(star.alt, star.az), 1, 1)
 
 def plotplanet( planet, obs, screen, pFont, color, size):
-    global pline
-#    planet = ephem.Mercury()
+
     planet.compute(obs)
 #    print "{} alt: {} az:{}".format(planet.name, math.degrees(planet.alt), math.degrees(planet.az))
     if (planet.alt>0):
@@ -251,241 +231,9 @@ def plotSky(screen, obs, sun):
 
 # ---------------------------------------------------------------------
 
-def setupInfo():
-# Setup fixed parts of screen
-    global bg, bgRect
-
-    bg = pygame.image.load("ISSTracker9.png")
-
-    txtColor = Red
-    txtFont = pygame.font.SysFont("Arial", 30, bold=True)
-    txt = 'ISS Tracker'
-#    if page == pageDemo: txt = txt + ' (Demo)'
-    txt = txtFont.render(txt , 1, txtColor)
-    bg.blit(txt, (15, line0))
-
-    txtColor = Red
-    txtFont = pygame.font.SysFont("Arial", 26, bold=True)
-    txt = txtFont.render("Start: " , 1, txtColor)
-    bg.blit(txt, (col1, line1))
-    txt = txtFont.render("Type:  " , 1, txtColor)
-    bg.blit(txt, (col1, line2))
-    txt = txtFont.render("Mag:   " , 1, txtColor)
-    bg.blit(txt, (col1, line3))
-    txt = txtFont.render("Alt:   " , 1, txtColor)
-    bg.blit(txt, (col1, line4))
-    txt = txtFont.render("Range: " , 1, txtColor)
-    bg.blit(txt, (col1, line5))
-    txt = txtFont.render("Due in:" , 1, txtColor)
-    bg.blit(txt, (col1, line6))
-
-    screen.blit(bg, bgRect)
-    pygame.display.update()
-
-def showInfo(utcNow, issp, obs, iss, sun):
-    global bg, bgRect
-
-    txtColor = Red
-    txtFont = pygame.font.SysFont("Arial", 26, bold=True)
-    screen.blit(bg, bgRect) # write background image
-
-    tn = utc_to_local(utcNow).strftime('%H:%M:%S')
-    tn = txtFont.render(tn, 1, Orange) # show current time
-    rect = tn.get_rect()
-    screen.blit(tn, (320 - rect.width, line0))
-
-    t1 = ephem.localtime(issp.risetime).strftime('%b %d %H:%M:%S')
-    txt = txtFont.render(t1 , 1, txtColor)
-    screen.blit(txt, (col2, line1))
-
-    if issp.daytimepass:
-        txt = "Daytime"
-    elif issp.nightpass and issp.beforesunrise:
-        txt = "Morning"
-    elif issp.nightpass and issp.aftersunset:
-        txt = "Evening"
-    txt = txtFont.render(txt , 1, txtColor)
-    screen.blit(txt, (col2, line2))
-
-    if (issp.maxmag>99):
-      txt = '---'
-    else:
-      txt = "{:0.1f}".format(issp.maxmag)
-    txt = txtFont.render(txt, 1, txtColor)
-    screen.blit(txt, (col2, line3))
-
-    txt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)), 1, txtColor)
-    screen.blit(txt, (col2, line4))
-
-    txt = txtFont.render("{:0.0f} km".format(issp.minrange) , 1, txtColor)
-    screen.blit(txt, (col2, line5))
-
-    tds = timedelta(issp.risetime - obs.date).total_seconds() # seconds until ISS rises
-
-    bkg = Black
-    if tds > 3600: tnc = Red # more than an hour
-    elif tds > 600: tnc = Yellow # more than 10 minutes
-    elif tds > 180: tnc = Green  # more than 3 minutes
-    else:
-#      if int(tds)%2: 
-      if datetime.now().second%2: # blink the time
-        tnc = Green # odd seconds
-        bkg = Black 
-      else:
-        tnc = Black # alternate colors
-        bkg = Green 
-
-    t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
-    txt = txtFont.render(t2 , 1, tnc, bkg)
-    screen.blit(txt, (col2, line6))
-
-    pygame.display.flip()
-
-# ---------------------------------------------------------------------
-
-def setupSky(issp, obs, iss, sun):
-    global bg, issImg, issRect
-
-    bg = pygame.image.load("ISSTracker7Dim.png")
-    bgRect = bg.get_rect()
-
-    vis = []
-    for altaz in issp.vispath:
-        vis.append(getxy(altaz[0],altaz[1]))
-#    print "vis:"
-#    print vis
-
-    nvis = []
-    for altaz in issp.nvispath:
-        nvis.append(getxy(altaz[0],altaz[1]))
-#    print "nvis:"
-#    print nvis
-
-#    print "sun.alt {}".format(math.degrees(sun.alt))
-#    if (math.degrees(sun.alt>0)):  "Sun is up"
-
-    sunaltd = math.degrees(sun.alt)
-#    print "sun alt {}".format(sunaltd)
-    if (sunaltd > 0):
-        bgColor = (32,32,92) # daytime
-    elif (sunaltd > -15): # twilight ???
-        bgColor = (16,16,64)
-    else:
-        bgColor = (0,0,0)
-
-    pygame.draw.circle(bg, bgColor, (160,120), 120, 0)
-    pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
-
-    if issp.daytimepass:
-        viscolor = Yellow # yellow
-    else:
-        viscolor = White # white
-    if (len(nvis)>1):  pygame.draw.lines(bg, (0,127,255), False, nvis, 1)
-    if (len(vis)>1):  pygame.draw.lines(bg, viscolor, False, vis, 1)
-
-    txtColor = Cyan
-    txtFont = pygame.font.SysFont("Arial", 14, bold=True)
-    txt = txtFont.render("N" , 1, txtColor)
-    bg.blit(txt, (155, 0))
-    txt = txtFont.render("S" , 1, txtColor)
-    bg.blit(txt, (155, 222))
-    txt = txtFont.render("E" , 1, txtColor)
-    bg.blit(txt, (43, 112))
-    txt = txtFont.render("W" , 1, txtColor)
-    bg.blit(txt, (263, 112))
-
-    issImg = pygame.image.load("ISSWm.png")
-    issRect = issImg.get_rect()
-
-    pygame.display.update()
-
-def showSky(utcNow, issp, obs, iss, sun):
-    global bg, issImg, issRect, BLST
-
-    txtColor = Yellow
-    txtFont = pygame.font.SysFont("Arial", 20, bold=True)
-
-    vmag=VisualMagnitude(iss, obs, sun)
-    issalt = math.degrees(iss.alt)
-    issaz = math.degrees(iss.az)
-
-    if blinkstick_on and issalt>0:
-      BLST.set(vmag, issalt, 10)
-      BLST.start()
-
-#    t1 = ephem.localtime(obs.date).strftime("%H:%M:%S")
-    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
-    t1 = txtFont.render(t1, 1, txtColor)
-
-    if (issalt>0): # if ISS is up, show the time left before it will set
-      td = issp.settime - obs.date
-      tds = timedelta(td).total_seconds()
-      t2 = "%02d:%02d" % (tds//60, tds%60)
-    else: # show how long before it will rise
-      td = issp.risetime - obs.date
-      tds = timedelta(td).total_seconds()
-      t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
-    t2 = txtFont.render(t2, 1, txtColor)
-
-    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
-    if (vmag<99):
-      tmag = "{:5.1f}".format(vmag)
-    else:
-      tmag = " - - -"
-    tmag = txtFont.render(tmag, 1, txtColor)
-    if (issp.maxmag>99):
-      txt = '---'
-    else:
-      txt = "{:5.1f}".format(issp.maxmag)
-    tmaxmag = txtFont.render(txt, 1, txtColor)
-
-    trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
-    tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
-
-    talt = txtFont.render("{:3.0f}".format(issalt) , 1, txtColor)
-    tazi = txtFont.render("{:3.0f}".format(issaz) , 1, txtColor)
-    tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
-
-    screen.blit(bg, bgRect)
-
-    plotSky(screen, obs, sun)
-
-#    screen.blit(tmag, (0,24))
-#    screen.blit(talt, (6,44))
-#    screen.blit(tazi, (6,64))
-    rect = tmag.get_rect()
-    screen.blit(tmag, (320 - rect.width, 160))
-    rect = talt.get_rect()
-    screen.blit(talt, (320 - rect.width, 180))
-    rect = tazi.get_rect()
-    screen.blit(tazi, (320 - rect.width, 200))
-
-    screen.blit(t1, (0, 0))
-    rect = t2.get_rect()
-    screen.blit(t2, (320 - rect.width, 0))
-    rect = tminrng.get_rect()
-    screen.blit(tminrng, (320 - rect.width, 20))
-    rect = tmaxmag.get_rect()
-    screen.blit(tmaxmag, (320 - rect.width, 40))
-    rect = tmaxalt.get_rect()
-    screen.blit(tmaxalt, (320 - rect.width, 60))
-
-    rect = trng.get_rect()
-    screen.blit(trng, (320 - rect.width, 220))
-
-#    moveISS(iss.alt, iss.az)
-    if (issalt>0):
-      (issW, issH) = issImg.get_size()
-      (x,y) = getxy(iss.alt,iss.az)
-      issRect.left = x - issW/2
-      issRect.top = y - issH/2
-      screen.blit(issImg, issRect)
-
-    pygame.display.flip()
-
-#  ----------------------------------------------------------------
-
 def pageAuto():
+  from showInfo import showInfo
+  from showSky import showSky
   global page
 #  stime = 1
   print 'Auto'
@@ -502,7 +250,7 @@ def pageAuto():
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
-        setupInfo() # set up Info display
+        sInfo = showInfo(screen) # set up Info display
     # wait for ISS to rise
         utcNow = datetime.utcnow() 
         obs.date = utcNow 
@@ -510,7 +258,7 @@ def pageAuto():
 #            utcNow = datetime.utcnow()
             obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
-            showInfo(utcNow, issp, obs, iss, sun)
+            sInfo.show(utcNow, issp, obs, iss, sun)
 #            while (datetime.utcnow()-utcNow).total_seconds() < stime:
             sec = utcNow.second
             while utcNow.second == sec: # wait for the clock to tic
@@ -520,14 +268,17 @@ def pageAuto():
 
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
-    setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
+    sSky = showSky(screen, issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageAuto and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
  #       utcNow = datetime.utcnow()
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        showSky(utcNow, issp, obs, iss, sun)
+        vmag=VisualMagnitude(iss, obs, sun)
+        sSky.plot(issp, utcNow, obs, iss, sun, vmag)
+        if blinkstick_on and iss.alt>0:
+          BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
 #        while (datetime.utcnow()-utcNow).total_seconds() < stime:
         while utcNow.second == sec: # wait for the clock to tic
@@ -541,6 +292,8 @@ def pageAuto():
 #  ----------------------------------------------------------------
 
 def pageDemo():
+  from showInfo import showInfo
+  from showSky import showSky
   global page
   stime = 0.1 # 10x normal speed
   print 'Demo'
@@ -567,25 +320,28 @@ def pageDemo():
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
-        setupInfo() # set up Info display
+        sInfo = showInfo(screen) # set up Info display
     # wait for ISS to rise
         while page == pageDemo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
             obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
-            showInfo(utcNow, issp, obs, iss, sun)
+            sInfo.show(utcNow, issp, obs, iss, sun)
             if checkEvent(): return
             sleep(0.1)
             utcNow = utcNow + timedelta(seconds=1)
 
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
-    setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
+    sSky = showSky(screen, issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageDemo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        showSky(utcNow, issp, obs, iss, sun)
+        vmag=VisualMagnitude(iss, obs, sun)
+        sSky.plot(issp, utcNow, obs, iss, sun, vmag)
+        if blinkstick_on and iss.alt>0:
+          BLST.start(vmag, math.degrees(iss.alt), 10)
         if checkEvent():
             break # don't forget to stop blinking
         sleep(0.1)
@@ -780,6 +536,7 @@ def pageLocation():
 #  ----------------------------------------------------------------
 
 def pageSky():
+  from showSky import showSky
   global page
   stime = 1
   print 'Sky'
@@ -796,15 +553,17 @@ def pageSky():
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # reset date/time after ISSPass runs
     iss.compute(obs) # recompute ISS
-    setupSky(issp, obs, iss, sun) # set up the ISS Pass screen
+    sSky = showSky(screen, issp, obs, iss, sun) # set up the Sky screen
     # show the sky
     while page == pageSky :
 #        utcNow = datetime.utcnow()
         obs.date = utcNow # update observer time
         iss.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        showSky(utcNow, issp, obs, iss, sun)
-#        while (datetime.utcnow()-utcNow).total_seconds() < stime:
+        vmag=VisualMagnitude(iss, obs, sun)
+        sSky.plot(issp, utcNow, obs, iss, sun, vmag)
+        if blinkstick_on and iss.alt>0:
+          BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while sec == utcNow.second: # wait for clock to tic
             if checkEvent(): break
@@ -819,134 +578,33 @@ def pageSky():
 
 # ---------------------------------------------------------------------
 
-def setupGPS(obs, iss, sun):
-    global bg, issImg, issRect, bgColor
-
-    bg = pygame.image.load("ISSTracker7Dim.png")
-    bgRect = bg.get_rect()
-
-    sunaltd = math.degrees(sun.alt)
-#    print "sun alt {}".format(sunaltd)
-    if (sunaltd > 0):
-        bgColor = (32,32,92) # daytime
-    elif (sunaltd > -15): # twilight ???
-        bgColor = (16,16,64)
-    else:
-        bgColor = (0,0,0)
-
-    pygame.draw.circle(bg, bgColor, (160,120), 120, 0)
-    pygame.draw.circle(bg, (0,255,255), (160,120), 120, 1)
-
-    txtColor = Cyan
-    txtFont = pygame.font.SysFont("Arial", 14, bold=True)
-    txt = txtFont.render("N" , 1, txtColor)
-    bg.blit(txt, (155, 0))
-    txt = txtFont.render("S" , 1, txtColor)
-    bg.blit(txt, (155, 222))
-    txt = txtFont.render("E" , 1, txtColor)
-    bg.blit(txt, (43, 112))
-    txt = txtFont.render("W" , 1, txtColor)
-    bg.blit(txt, (263, 112))
-
-    pygame.display.update()
-
-def showGPS(utcNow, obs, iss, sun):
-    global bg, issImg, issRect, BLST
-
-    txtColor = Yellow
-    txtFont = pygame.font.SysFont("Arial", 20, bold=True)
-
-#    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
-#    t1 = utc_to_local(gps.datetime).strftime('%H:%M:%S')
-    t1 = gps.datetime.strftime('%H:%M:%S') # time
-    t1 = txtFont.render(t1, 1, txtColor)
-    t2 = gps.datetime.strftime('%y-%m-%d') # date
-    t2 = txtFont.render(t2, 1, txtColor)
-
-    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
-
-    alt = gps.altitude + gps.geodiff
-    if alt<100:
-      talt = '{:6.1f}m'.format(alt)
-    else:
-      talt = '{:6.0f}m'.format(alt)
-    talt = txtFont.render(talt, 1, txtColor)
-
-    tlat = '{:6.4f}'.format(math.degrees(gps.lat))
-    tlat = txtFont.render(tlat, 1, txtColor)
-    tlon = '{:6.4f}'.format(math.degrees(gps.lon))
-    tlon = txtFont.render(tlon, 1, txtColor)
-
-    screen.blit(bg, bgRect)
-
-    screen.blit(t1, (0, 0))
-    rect = t2.get_rect()
-    screen.blit(t2, (320 - rect.width, 0))
-
-    rect = talt.get_rect()
-    screen.blit(talt, (320 - rect.width, 180))
-    rect = tlat.get_rect()
-    screen.blit(tlat, (320 - rect.width, 200))
-    rect = tlon.get_rect()
-    screen.blit(tlon, (320 - rect.width, 220))
-
-    plotSky(screen, obs, sun)
-
-    satFont = pygame.font.SysFont("Arial", 10, bold=True)
-
-# TODO: detect collision and move label
-#    if gps.statusOK:
-    if True:
-      ns = 0
-      nsa = 0
-      for sat in gps.satellites: # plot all GPS satellites on sky chart
-        if (sat.alt,sat.azi) == (0,0): pass
-        xy = getxy(sat.alt,sat.azi)
-        ns += 1
-        sz = sat.snr
-        if sz>0: nsa += 1
-        if sz<5:    color = Red # no signal
-        elif sz<20: color = Yellow
-        else:       color = Green
-        if sz<9: sz = 9 # minimum circle size
-        pygame.draw.circle(screen, color, xy, sz, 1)
-        t1 = satFont.render(format(sat.svn), 1, White, bgColor) 
-        t1pos = t1.get_rect()
-        t1pos.centerx = xy[0]
-        t1pos.centery = xy[1]
-        screen.blit(t1,t1pos)
-      t1 = '{:0>2}/{:0>2}'.format(nsa, ns)
-      t1 = txtFont.render(t1, 1, txtColor)
-      screen.blit(t1,(1,44))
-      t1 = txtFont.render(gps.status + '/' + gps.quality, 1, txtColor)
-      screen.blit(t1,(1,24))
-
-    pygame.display.flip()
-
-#  ----------------------------------------------------------------
-
 def pageGPS():
-  global page
+  from showGPS import showGPS
+  global page, gps
   print 'GPS'
 
   utcNow = datetime.utcnow()
   obs.date = utcNow
   sun = ephem.Sun(obs)
   iss.compute(obs)
-  setupGPS(obs, iss, sun) # set up the GPS display screen
+
+  sGPS = showGPS(screen, gps, obs, iss, sun) # set up the GPS display screen
   # show the sky with GPS positions & signal
   while page == pageGPS:
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # update observer time
     iss.compute(obs) # compute new position
     sun = ephem.Sun(obs) # recompute the sun
-    showGPS(utcNow, obs, iss, sun)
+    sGPS.plot(gps, utcNow, obs, iss, sun)
 #    while (datetime.utcnow()-utcNow).total_seconds() < stime:
     sec = utcNow.second
     while sec == utcNow.second: # wait for clock to tic
       if checkEvent(): break
       sleep(0.1)
       utcNow = datetime.utcnow()
+    gc.collect()
+
+  gc.collect()
 
 #  ----------------------------------------------------------------
 
@@ -1053,6 +711,7 @@ def pageMenu():
 
     while page == pageMenu:
         if checkEvent(): break
+    gc.collect()
 
 #  ----------------------------------------------------------------
 global menuScrn,  Menu
@@ -1147,8 +806,8 @@ gps_on = True
 #    if opt.blinkstick:
 if True:
     blinkstick_on = True
-    BLST = BlinkStick(-3, 90, 3)
-    BLST.start()
+    BLST = BlinkStick()
+    BLST.start(-3, 90, 3)
     sleep(2)
     BLST.stop()
 
@@ -1156,8 +815,11 @@ setMenu() # set up menu
 page = pageAuto
 
 while(True):
+
   try:
     page()
+    gc.collect()
+
   except SystemExit:
     print 'SystemExit'
     sys.exit(0)

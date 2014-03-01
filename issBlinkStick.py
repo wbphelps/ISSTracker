@@ -8,7 +8,7 @@ def map(x, in_min, in_max, out_min, out_max):
 
 class BlinkStick():
 
-  def __init__(self, mag, alt, count=1):
+  def __init__(self, mag=0, alt=0, count=1):
     self.mag = mag
     self.alt = alt
     self.bstick = blinkstick.find_first()
@@ -51,8 +51,11 @@ class BlinkStick():
       self.mag = mag
       self.count = count
 
-  def start(self):
+  def start(self, mag, alt, count=1):
     with self.lock:
+      self.alt = alt
+      self.mag = mag
+      self.count = count
       if self.running == False:
 #        print "bl: start thread"
         self._run = True

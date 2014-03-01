@@ -93,6 +93,10 @@ class pyGPS():
     self.altitude = 0
     self.geodiff = 0
 
+  def __exit__(self, type, value, traceback):
+    self.port.close() # close serial port
+    print 'GPS exit'
+
   def check(self,rcv):
     # calculate checksum
     chk1 = 0
@@ -118,9 +122,10 @@ class pyGPS():
     return tk
 
   def getGPS(self):
+    print 'GPS start'
     with self.lock:
       if self.running:
-        print "bl: error already running"
+        print "GPS: error already running"
         return
       self.running = True
     sats = []
@@ -256,4 +261,5 @@ class pyGPS():
   def stop(self):
     with self.lock:
       self._run = False # stop loop
+
 
