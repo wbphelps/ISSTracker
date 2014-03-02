@@ -6,9 +6,36 @@ from pygame.locals import *
 import math
 import ephem, ephem.stars
 
+r90 = math.radians(90) # 90 degrees in radians
+
+stars = []
+
+#stardata = ephem.stars.db.split("\n")
+#for startxt in stardata:
+#  name = startxt.split(',')[0]
+#  if len(name)>0:
+#    stars.append(ephem.star(name))
+#del stardata
+
+# there are 95 names in this list but only 94 in ephem.stars.db...
+starnames = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
+  'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
+  'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
+  'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
+  'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
+  'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
+  'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
+  'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
+  'Merope','Arkab Posterior','Taygeta']
+for name in starnames:
+  stars.append(ephem.star(name))
+del starnames
+
+print 'Stars: {}'.format(len(stars))
+
 def getxy(alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
-    r90 = math.radians(90) # 90 degrees in radians
+#    r90 = math.radians(90) # 90 degrees in radians (1.5707963267948966)
     r = (r90 - alt)/r90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
@@ -23,20 +50,11 @@ class plotStars():
     self.obs = obs
     self.sun = sun
 
-#    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
-#      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
-#      'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
-#      'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
-#      'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
-#      'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
-#      'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
-#      'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
-#      'Merope','Arkab Posterior','Taygeta']
-
-    for star in ephem.stars.db.split("\n"):
-        name = star.split(',')[0]
-        if len(name)>0:
-            self.plotStar(name)
+    for star in stars:
+        star.compute(self.obs)
+        if star.alt > 0:
+          pygame.draw.circle(self.screen, (255,255,255), getxy(star.alt, star.az), 1, 1)
+        del star
 
 # plot 5 circles to test plot
 #    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(90), math.radians(0)), 5, 1) # center

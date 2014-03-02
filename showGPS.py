@@ -21,10 +21,10 @@ Cyan = pygame.Color('cyan')
 Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
 Black = (0,0,0)
+r90 = math.radians(90) # 90 degrees in radians
 
 def getxy(alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
-    r90 = math.radians(90) # 90 degrees in radians
     r = (r90 - alt)/r90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
@@ -34,7 +34,7 @@ def getxy(alt, azi): # alt, az in radians
 
 class showGPS():
 
-  def __init__(self, screen, gps, obs, iss, sun):
+  def __init__(self, screen, gps, obs, sun):
 #    self.screen = pygame.Surface((320,240)) # a new screen layer
     self.screen = screen
     self.bg = pygame.image.load("ISSTracker7Dim.png") # the non-changing background
@@ -67,17 +67,18 @@ class showGPS():
     pygame.display.update()
 
 
-  def plot(self, gps, utcNow, obs, iss, sun):
+  def plot(self, gps, obs, sun):
 
     txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
 
-#    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
-#    t1 = utc_to_local(gps.datetime).strftime('%H:%M:%S')
-    t1 = gps.datetime.strftime('%H:%M:%S') # time
-    t1 = txtFont.render(t1, 1, txtColor)
-    t2 = gps.datetime.strftime('%y-%m-%d') # date
-    t2 = txtFont.render(t2, 1, txtColor)
+    self.screen.blit(self.bg, self.bgRect)
+
+    t1 = txtFont.render(gps.datetime.strftime('%H:%M:%S'), 1, txtColor) # time
+    self.screen.blit(t1, (0,0)) # time
+    t2 = txtFont.render(gps.datetime.strftime('%y-%m-%d'), 1, txtColor) # date
+    rect = t2.get_rect()
+    self.screen.blit(t2, (320 - rect.width, 0))
 
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
 
@@ -87,22 +88,14 @@ class showGPS():
     else:
       talt = '{:6.0f}m'.format(alt)
     talt = txtFont.render(talt, 1, txtColor)
-
-    tlat = '{:6.4f}'.format(math.degrees(gps.lat))
-    tlat = txtFont.render(tlat, 1, txtColor)
-    tlon = '{:6.4f}'.format(math.degrees(gps.lon))
-    tlon = txtFont.render(tlon, 1, txtColor)
-
-    self.screen.blit(self.bg, self.bgRect)
-
-    self.screen.blit(t1, (0, 0))
-    rect = t2.get_rect()
-    self.screen.blit(t2, (320 - rect.width, 0))
-
     rect = talt.get_rect()
     self.screen.blit(talt, (320 - rect.width, 180))
+
+    tlat = txtFont.render('{:6.4f}'.format(math.degrees(gps.lat)), 1, txtColor)
     rect = tlat.get_rect()
     self.screen.blit(tlat, (320 - rect.width, 200))
+
+    tlon = txtFont.render('{:6.4f}'.format(math.degrees(gps.lon)), 1, txtColor)
     rect = tlon.get_rect()
     self.screen.blit(tlon, (320 - rect.width, 220))
 
@@ -112,11 +105,9 @@ class showGPS():
     satFont = pygame.font.SysFont("Arial", 10, bold=True)
 
 # TODO: detect collision and move label
-#    if gps.statusOK:
-    if True:
-      ns = 0
-      nsa = 0
-      for sat in gps.satellites: # plot all GPS satellites on sky chart
+    ns = 0
+    nsa = 0
+    for sat in gps.satellites: # plot all GPS satellites on sky chart
         if (sat.alt,sat.azi) == (0,0): pass
         xy = getxy(sat.alt,sat.azi)
         ns += 1
@@ -132,11 +123,10 @@ class showGPS():
         t1pos.centerx = xy[0]
         t1pos.centery = xy[1]
         self.screen.blit(t1,t1pos)
-      t1 = '{:0>2}/{:0>2}'.format(nsa, ns)
-      t1 = txtFont.render(t1, 1, txtColor)
-      self.screen.blit(t1,(1,44))
-      t1 = txtFont.render(gps.status + '/' + gps.quality, 1, txtColor)
-      self.screen.blit(t1,(1,24))
+    s1 = txtFont.render('{:0>2}/{:0>2}'.format(nsa, ns), 1, txtColor)
+    self.screen.blit(s1,(1,44))
+    s2 = txtFont.render(gps.status + '/' + gps.quality, 1, txtColor)
+    self.screen.blit(s2,(1,24))
 
     pygame.display.update() #flip()
 

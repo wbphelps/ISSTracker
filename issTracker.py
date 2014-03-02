@@ -586,16 +586,16 @@ def pageGPS():
   utcNow = datetime.utcnow()
   obs.date = utcNow
   sun = ephem.Sun(obs)
-  iss.compute(obs)
+#  iss.compute(obs)
 
-  sGPS = showGPS(screen, gps, obs, iss, sun) # set up the GPS display screen
+  sGPS = showGPS(screen, gps, obs, sun) # set up the GPS display screen
   # show the sky with GPS positions & signal
   while page == pageGPS:
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # update observer time
-    iss.compute(obs) # compute new position
+#    iss.compute(obs) # compute new position
     sun = ephem.Sun(obs) # recompute the sun
-    sGPS.plot(gps, utcNow, obs, iss, sun)
+    sGPS.plot(gps, obs, sun)
 #    while (datetime.utcnow()-utcNow).total_seconds() < stime:
     sec = utcNow.second
     while sec == utcNow.second: # wait for clock to tic
@@ -604,6 +604,7 @@ def pageGPS():
       utcNow = datetime.utcnow()
     gc.collect()
 
+  del sGPS
   gc.collect()
 
 #  ----------------------------------------------------------------
