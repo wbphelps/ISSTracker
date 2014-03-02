@@ -59,20 +59,6 @@ Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
 Black = (0,0,0)
 
-#iss_tle = ('ISS (ZARYA)', 
-#  '1 25544U 98067A   14043.40180105  .00016203  00000-0  28859-3 0  6670',
-#  '2 25544  51.6503 358.1745 0004087 127.2033  23.9319 15.50263757871961')
-
-#iss_tle = ('ISS (NASA)',
-#  '1 25544U 98067A   14044.53508303  .00016717  00000-0  10270-3 0  9018',
-#  '2 25544  51.6485 352.5641 0003745 129.1118 231.0366 15.50282351 32142')
-#date = Feb 13 2014
-
-#iss_tle = ('ISS (NASA)',
-#   '1 25544U 98067A   14047.37128447  .00016717  00000-0  10270-3 0  9021',
-#   '2 25544  51.6475 338.5079 0003760 140.1188 220.0239 15.50386824 32582')
-#date = Feb 16 2014
-
 # ---------------------------------------------------------------
 
 def enum(**enums):
@@ -298,8 +284,7 @@ def pageDemo():
   stime = 0.1 # 10x normal speed
   print 'Demo'
 
-  utcNow = datetime(2014, 2, 6, 3, 3, 30) # 1 minute before ISS is due
-#  utcNow = datetime(2014, 2, 6, 3, 0, 0) # 2 minutes before ISS is due
+  utcNow = datetime(2014, 2, 6, 2, 58, 30) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
@@ -308,14 +293,30 @@ def pageDemo():
 #  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 #  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
 
+  iss_tle = ('ISS (ZARYA)', 
+    '1 25544U 98067A   14043.40180105  .00016203  00000-0  28859-3 0  6670',
+    '2 25544  51.6503 358.1745 0004087 127.2033  23.9319 15.50263757871961')
+#date = Feb 12 2014
+
+#iss_tle = ('ISS (NASA)',
+#  '1 25544U 98067A   14044.53508303  .00016717  00000-0  10270-3 0  9018',
+#  '2 25544  51.6485 352.5641 0003745 129.1118 231.0366 15.50282351 32142')
+#date = Feb 13 2014
+
+#iss_tle = ('ISS (NASA)',
+#   '1 25544U 98067A   14047.37128447  .00016717  00000-0  10270-3 0  9021',
+#   '2 25544  51.6475 338.5079 0003760 140.1188 220.0239 15.50386824 32582')
+#dat2e = Feb 16 2014
+  issDemo = ephem.readtle(iss_tle[0], iss_tle[1], iss_tle[2] )
+
   while (page == pageDemo):
     if checkEvent(): return
 
     obs.date = utcNow
     sun = ephem.Sun(obs)
-    iss.compute(obs)
+    issDemo.compute(obs)
 
-    issp = ISSPass( iss, obs, sun ) # get data on next ISS pass
+    issp = ISSPass( issDemo, obs, sun ) # get data on next ISS pass
     obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
@@ -325,23 +326,23 @@ def pageDemo():
         while page == pageDemo and ephem.localtime(issp.risetime) > ephem.localtime(obs.date) :
             obs.date = utcNow
             sun = ephem.Sun(obs) # recompute the sun
-            sInfo.show(utcNow, issp, obs, iss, sun)
+            sInfo.show(utcNow, issp, obs, issDemo, sun)
             if checkEvent(): return
             sleep(0.1)
             utcNow = utcNow + timedelta(seconds=1)
 
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
-    iss.compute(obs) # recompute ISS
-    sSky = showSky(screen, issp, obs, iss, sun) # set up the ISS Pass screen
+    issDemo.compute(obs) # recompute ISS
+    sSky = showSky(screen, issp, obs, issDemo, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageDemo and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
         obs.date = utcNow # update observer time
-        iss.compute(obs) # compute new position
+        issDemo.compute(obs) # compute new position
         sun = ephem.Sun(obs) # recompute the sun
-        vmag=VisualMagnitude(iss, obs, sun)
-        sSky.plot(issp, utcNow, obs, iss, sun, vmag)
-        if blinkstick_on and iss.alt>0:
-          BLST.start(vmag, math.degrees(iss.alt), 10)
+        vmag=VisualMagnitude(issDemo, obs, sun)
+        sSky.plot(issp, utcNow, obs, issDemo, sun, vmag)
+        if blinkstick_on and issDemo.alt>0:
+          BLST.start(vmag, math.degrees(issDemo.alt), 10)
         if checkEvent():
             break # don't forget to stop blinking
         sleep(0.1)

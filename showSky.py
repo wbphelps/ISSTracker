@@ -51,13 +51,6 @@ class showSky():
     self.bgColor = (0,0,0)
     self.bgRect = self.bg.get_rect()
 
-    vis = []
-    for altaz in issp.vispath:
-        vis.append(getxy(altaz[0],altaz[1]))
-    nvis = []
-    for altaz in issp.nvispath:
-        nvis.append(getxy(altaz[0],altaz[1]))
-
     sunaltd = math.degrees(sun.alt)
     if (sunaltd > 0):
         self.bgColor = (32,32,92) # daytime
@@ -69,12 +62,40 @@ class showSky():
     pygame.draw.circle(self.bg, self.bgColor, (160,120), 120, 0)
     pygame.draw.circle(self.bg, (0,255,255), (160,120), 120, 1)
 
+    vispath = []
+    nvispath = []
+    firstvis = True
+    firstnvis = True
+
+#    for aam in issp.path: # alt, az, mag
+#      if aam[2]<99: # visible?
+#        if firstvis and not firstnvis: # if path started with non-visible portion
+#          print 'linking nvis to vis'
+#          vispath.append(nvispath[-1]) # connect with last point of non-visible path
+#        firstvis = False
+#        vispath.append(getxy(aam[0],aam[1]))
+#      else:
+#        if firstnvis and not firstvis: # if path started with visible portion
+#          print 'linking vis to nvis'
+#          nvispath.append(vispath[-1]) # connect with last point of visible path
+#        firstnvis = False
+#        nvispath.append(getxy(aam[0],aam[1]))
+
     if issp.daytimepass:
-        viscolor = Yellow # yellow
+        visColor = Yellow # yellow
     else:
-        viscolor = White # white
-    if (len(nvis)>1):  pygame.draw.lines(self.bg, (0,127,255), False, nvis, 1)
-    if (len(vis)>1):  pygame.draw.lines(self.bg, viscolor, False, vis, 1)
+        visColor = White # white
+
+#    if (len(vispath)>1):  pygame.draw.lines(self.bg, viscolor, False, vispath, 1)
+#    if (len(nvispath)>1):  pygame.draw.lines(self.bg, (0,127,255), False, nvispath, 1)
+    for aam in issp.path: # alt, az, mag
+      sz = int(1-aam[2] * 3 + 0.5) # vmag * 3 (sort of) (round makes a float!)
+      if sz<2: sz = 2
+      if aam[2]<99: # visible
+        pColor = visColor
+      else:
+        pColor = (0,127,255)
+      pygame.draw.circle(self.bg, pColor, getxy(aam[0],aam[1]), sz, 1)
 
     txtColor = Cyan
     txtFont = pygame.font.SysFont("Arial", 14, bold=True)
