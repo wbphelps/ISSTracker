@@ -24,6 +24,7 @@ Cyan = pygame.Color('cyan')
 Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
 Black = (0,0,0)
+R90 = math.radians(90) # 90 degrees in radians
 
 def utc_to_local(utc_dt):
     # get integer timestamp to avoid precision lost
@@ -34,12 +35,11 @@ def utc_to_local(utc_dt):
 
 def getxy(alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
-    r90 = math.radians(90) # 90 degrees in radians
-    r = (r90 - alt)/r90
+    r = (R90 - alt)/R90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
-    x = int(160 - x * 120) # flip E/W, scale to radius, center on plot
-    y = int(120 - y * 120) # scale to radius, center on plot
+    x = int(160 - x * 120 + 0.5) # flip E/W, scale to radius, center on plot
+    y = int(120 - y * 120 + 0.5) # scale to radius, center on plot
     return (x,y)
 
 class showSky():
@@ -67,6 +67,12 @@ class showSky():
     firstvis = True
     firstnvis = True
 
+    if issp.daytimepass:
+        visColor = Yellow # yellow
+    else:
+        visColor = White # white
+
+# plot lines for ISS path - visible & non-visible
 #    for aam in issp.path: # alt, az, mag
 #      if aam[2]<99: # visible?
 #        if firstvis and not firstnvis: # if path started with non-visible portion
@@ -81,16 +87,13 @@ class showSky():
 #        firstnvis = False
 #        nvispath.append(getxy(aam[0],aam[1]))
 
-    if issp.daytimepass:
-        visColor = Yellow # yellow
-    else:
-        visColor = White # white
-
 #    if (len(vispath)>1):  pygame.draw.lines(self.bg, viscolor, False, vispath, 1)
 #    if (len(nvispath)>1):  pygame.draw.lines(self.bg, (0,127,255), False, nvispath, 1)
+
+# plot circles for iss path, size shows magnitude
     for aam in issp.path: # alt, az, mag
-      sz = int(1-aam[2] * 3 + 0.5) # vmag * 3 (sort of) (round makes a float!)
-      if sz<2: sz = 2
+      sz = int(1-aam[2] * 2 + 0.5) # vmag * 3 (sort of) (round makes a float!)
+      if sz<2: sz = 2 # minimum radius
       if aam[2]<99: # visible
         pColor = visColor
       else:
@@ -120,71 +123,72 @@ class showSky():
     issalt = math.degrees(iss.alt)
     issaz = math.degrees(iss.az)
 
+    self.screen.blit(self.bg, self.bgRect) # paint background image on screen
+
 #    t1 = ephem.localtime(obs.date).strftime("%H:%M:%S")
-    t1 = utc_to_local(utcNow).strftime('%H:%M:%S')
-    t1 = txtFont.render(t1, 1, txtColor)
+    t1txt = utc_to_local(utcNow).strftime('%H:%M:%S')
+    t1 = txtFont.render(t1txt, 1, txtColor)
+    self.screen.blit(t1, (0, 0))
 
     if (issalt>0): # if ISS is up, show the time left before it will set
       td = issp.settime - obs.date
       tds = timedelta(td).total_seconds()
-      t2 = "%02d:%02d" % (tds//60, tds%60)
+      t2txt = "%02d:%02d" % (tds//60, tds%60)
     else: # show how long before it will rise
       td = issp.risetime - obs.date
       tds = timedelta(td).total_seconds()
-      t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
-    t2 = txtFont.render(t2, 1, txtColor)
+      t2txt = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
+    t2 = txtFont.render(t2txt, 1, txtColor)
+    r2 = t2.get_rect()
+    self.screen.blit(t2, (320 - r2.width, 0))
 
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
     if (issmag<99):
-      tmag = "{:5.1f}".format(issmag)
+      magtxt = "{:5.1f}".format(issmag)
     else:
-      tmag = " - - -"
-    tmag = txtFont.render(tmag, 1, txtColor)
+      magtxt = " - - -"
+    tmag = txtFont.render(magtxt, 1, txtColor)
+    rmag = tmag.get_rect()
+    self.screen.blit(tmag, (320 - rmag.width, 160))
+
     if (issp.maxmag>99):
-      txt = '---'
+      maxmagtxt = '---'
     else:
-      txt = "{:5.1f}".format(issp.maxmag)
-    tmaxmag = txtFont.render(txt, 1, txtColor)
+      maxmagtxt = "{:5.1f}".format(issp.maxmag)
+    tmaxmag = txtFont.render(maxmagtxt, 1, txtColor)
+    rmaxmag = tmaxmag.get_rect()
+    self.screen.blit(tmaxmag, (320 - rmaxmag.width, 40))
 
     trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
+    rrng = trng.get_rect()
+    self.screen.blit(trng, (320 - rrng.width, 220))
+
     tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
+    rminrng = tminrng.get_rect()
+    self.screen.blit(tminrng, (320 - rminrng.width, 20))
 
     talt = txtFont.render("{:3.0f}".format(issalt) , 1, txtColor)
+    ralt = talt.get_rect()
+    self.screen.blit(talt, (320 - ralt.width, 180))
+
     tazi = txtFont.render("{:3.0f}".format(issaz) , 1, txtColor)
+    razi = tazi.get_rect()
+    self.screen.blit(tazi, (320 - razi.width, 200))
+
     tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
-    self.screen.blit(self.bg, self.bgRect)
+    rmaxalt = tmaxalt.get_rect()
+    self.screen.blit(tmaxalt, (320 - rmaxalt.width, 60))
 
     plotStars(self.screen, obs, sun)
     plotPlanets(self.screen, obs, sun)
 
-#    self.screen.blit(tmag, (0,24))
-#    self.screen.blit(talt, (6,44))
-#    self.screen.blit(tazi, (6,64))
-    rect = tmag.get_rect()
-    self.screen.blit(tmag, (320 - rect.width, 160))
-    rect = talt.get_rect()
-    self.screen.blit(talt, (320 - rect.width, 180))
-    rect = tazi.get_rect()
-    self.screen.blit(tazi, (320 - rect.width, 200))
-
-    self.screen.blit(t1, (0, 0))
-    rect = t2.get_rect()
-    self.screen.blit(t2, (320 - rect.width, 0))
-    rect = tminrng.get_rect()
-    self.screen.blit(tminrng, (320 - rect.width, 20))
-    rect = tmaxmag.get_rect()
-    self.screen.blit(tmaxmag, (320 - rect.width, 40))
-    rect = tmaxalt.get_rect()
-    self.screen.blit(tmaxalt, (320 - rect.width, 60))
-
-    rect = trng.get_rect()
-    self.screen.blit(trng, (320 - rect.width, 220))
-
     if (issalt>0):
-      (x,y) = getxy(iss.alt,iss.az)
-      self.issRect.centerx = x 
-      self.issRect.centery = y
-      self.screen.blit(self.issImg, self.issRect)
+      (x,y) = getxy(iss.alt,iss.az) # show where ISS is
+    else:
+      (x,y) = getxy(0, issp.riseazi) # show where ISS will rise
+    self.issRect.centerx = x 
+    self.issRect.centery = y
+    self.screen.blit(self.issImg, self.issRect)
 
     pygame.display.update() # flip()
 

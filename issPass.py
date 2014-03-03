@@ -29,7 +29,7 @@ def VisualMagnitude(iss, obs, sun):
 class ISSPass:
 # find the next ISS Pass and calculate the path for plotting
 
-  def __init__(self, iss, obs, sun, interval = 10):
+  def __init__(self, iss, obs, sun, interval = 15):
 
     self.iss = iss
     self.obs = obs

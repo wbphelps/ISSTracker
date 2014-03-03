@@ -58,6 +58,7 @@ Cyan = pygame.Color('cyan')
 Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
 Black = (0,0,0)
+R90 = math.radians(90) # 90 degrees in radians
 
 # ---------------------------------------------------------------
 
@@ -142,78 +143,12 @@ sleep(3)
 
 def getxy(alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
-    r90 = math.radians(90) # 90 degrees in radians
-    r = (r90 - alt)/r90
+    r = (R90 - alt)/R90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
     x = int(160 - x * 120) # flip E/W, scale to radius, center on plot
     y = int(120 - y * 120) # scale to radius, center on plot
     return (x,y)
-
-def plotstar(name, screen, obs):
-    star = ephem.star(name)
-    star.compute(obs)
-    if star.alt > 0:
-      pygame.draw.circle(screen, White, getxy(star.alt, star.az), 1, 1)
-
-def plotplanet( planet, obs, screen, pFont, color, size):
-
-    planet.compute(obs)
-#    print "{} alt: {} az:{}".format(planet.name, math.degrees(planet.alt), math.degrees(planet.az))
-    if (planet.alt>0):
-      pygame.draw.circle(screen, color, getxy(planet.alt, planet.az), size, 0)
-      txt = pFont.render(planet.name, 1, color, Black)
-      pline -= 15
-      screen.blit(txt, (1,pline))
-
-def plotSky(screen, obs, sun):
-
-    global pline
-    pline = 235
-    pFont = pygame.font.SysFont('Arial', 16, bold=True)
-
-#    stars = ['Polaris','Sirius','Canopus','Arcturus','Vega','Capella','Rigel','Procyon','Achernar','Betelgeuse','Agena',
-#      'Altair','Aldebaran','Spica','Antares','Pollux','Fomalhaut','Mimosa','Deneb','Regulus','Adara','Castor','Shaula',
-#      'Bellatrix','Elnath','Alnilam','Alnair','Alnitak','Alioth','Kaus Australis','Dubhe','Wezen','Alcaid','Menkalinan',
-#      'Alhena','Peacock','Mirzam','Alphard','Hamal','Algieba','Nunki','Sirrah','Mirach','Saiph','Kochab','Rasalhague',
-#      'Algol','Almach','Denebola','Naos','Alphecca','Mizar','Sadr','Schedar','Etamin','Mintaka','Caph','Merak','Izar',
-#      'Enif','Phecda','Scheat','Alderamin','Markab','Menkar','Arneb','Gienah Corvi','Unukalhai','Tarazed','Cebalrai',
-#      'Rasalgethi','Nihal','Nihal','Algenib','Alcyone','Vindemiatrix','Sadalmelik','Zaurak','Minkar','Albereo',
-#      'Alfirk','Sulafat','Megrez','Sheliak','Atlas','Thuban','Alshain','Electra','Maia','Arkab Prior','Rukbat','Alcor',
-#      'Merope','Arkab Posterior','Taygeta']
-      
-    for star in ephem.stars.db.split("\n"):
-        name = star.split(',')[0]
-        if len(name)>0:
-            plotstar(name, screen, obs)
-
-# plot 5 circles to test plot
-#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(90), math.radians(0)), 5, 1) # center
-#    pygame.draw.circle(screen, (255,0,0), getxy(math.radians(45), math.radians(0)), 5, 1) # red N
-#    pygame.draw.circle(screen, (0,255,0), getxy(math.radians(45), math.radians(90)), 5, 1) # green E
-#    pygame.draw.circle(screen, (0,0,255), getxy(math.radians(45), math.radians(180)), 5, 1) # blue S
-#    pygame.draw.circle(screen, (255,255,0), getxy(math.radians(45), math.radians(270)), 5, 1) # yellow W
-
-
-    plotplanet(ephem.Saturn(), obs, screen, pFont, (255,128,255), 3)
-    plotplanet(ephem.Jupiter(), obs, screen, pFont, (255,255,128), 3)
-    plotplanet(ephem.Mars(), obs, screen, pFont, Red, 3)
-    plotplanet(ephem.Venus(), obs, screen, pFont, White, 3)
-    plotplanet(ephem.Mercury(), obs, screen, pFont, (128,255,255), 3)
-
-    moon = ephem.Moon()
-    moon.compute(obs)
-    if (moon.alt>0):
-      pygame.draw.circle(screen, White, getxy(moon.alt, moon.az), 5, 0)
-      txt = pFont.render('Moon', 1, White)
-      pline -= 15
-      screen.blit(txt, (1,pline))
-
-    if (sun.alt>0):
-      pygame.draw.circle(screen, Yellow, getxy(sun.alt, sun.az), 5, 0)
-      txt = pFont.render('Sun', 1, Yellow)
-      pline -= 15
-      screen.blit(txt, (1,pline))
 
 # ---------------------------------------------------------------------
 
@@ -231,7 +166,7 @@ def pageAuto():
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
-    issp = ISSPass( iss, obs, sun, 5 ) # get data on next ISS pass
+    issp = ISSPass( iss, obs, sun, 15 ) # get data on next ISS pass, at 15 second intervals
     obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
@@ -316,7 +251,7 @@ def pageDemo():
     sun = ephem.Sun(obs)
     issDemo.compute(obs)
 
-    issp = ISSPass( issDemo, obs, sun ) # get data on next ISS pass
+    issp = ISSPass( issDemo, obs, sun, 15 ) # get data on next ISS pass, at 15 second intervals
     obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
@@ -487,20 +422,20 @@ def pageDateTime():
   print 'DateTime'
   while page == pageDateTime:
     if checkEvent(): return
-    mykeys = VirtualKeyboard()
+    vkey = VirtualKeyboard(screen) # create a virtual keyboard
     if gps_on and gps.statusOK:
       tn = gps.datetime + timedelta(seconds=5) # set ahead a bit
     else:
       tn = datetime.now() + timedelta(seconds=5) # set ahead a bit
-    txt = tn.strftime('%Y-%m-%d %H:%M:%S')
-    txt = mykeys.run(screen, txt)
-    print 'datetime: ' + txt
-    try:
-        dt = datetime.strptime(txt, '%Y-%m-%d %H:%M:%S') # check format
-        print 'dt: {}'.format(dt)
-        os.system('sudo date -s "{}"'.format(dt))
-    except:
-        pass
+    txt = vkey.run(tn.strftime('%Y-%m-%d %H:%M:%S'))
+    print 'datetime: {}'.format(txt)
+    if len(txt)>0:
+      try:
+          dt = datetime.strptime(txt, '%Y-%m-%d %H:%M:%S') # check format
+          print 'dt: {}'.format(dt)
+          os.system('sudo date -s "{}"'.format(dt))
+      except:
+          pass
 
     page = pageMenu
     return
@@ -512,23 +447,24 @@ def pageLocation():
   print 'Location'
   while page == pageLocation:
     if checkEvent(): return
-    mykeys = VirtualKeyboard()
+    vkey = VirtualKeyboard(screen) # create a virtual keyboard
     if gps_on and gps.statusOK:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(gps.lat),math.degrees(gps.lon))
     else:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
-    txt = mykeys.run(screen, txt)
-    try:
-        print 'Location: {}'.format(txt)
-        loc = txt.split(',')
-        print 'loc: {:6.4f},{:6.4f}'.format(float(loc[0]),float(loc[1]))
-        obs.lat = math.radians(float(loc[0]))
-        obs.lon = math.radians(float(loc[1]))
-        print 'obs set: {:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
-        sun = ephem.Sun(obs) # recompute
-        iss.compute(obs) # recompute
-    except:
-        pass
+    txt2 = vkey.run(txt)
+    print 'Location: {}'.format(txt2)
+    if len(txt2)>0:
+      try:
+          loc = txt2.split(',')
+          print 'loc: {:6.4f},{:6.4f}'.format(float(loc[0]),float(loc[1]))
+          obs.lat = math.radians(float(loc[0]))
+          obs.lon = math.radians(float(loc[1]))
+          print 'obs set: {:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
+          sun = ephem.Sun(obs) # recompute
+          iss.compute(obs) # recompute
+      except:
+          pass
 
     page = pageMenu
     return
@@ -550,7 +486,7 @@ def pageSky():
     iss.compute(obs)
 
 # find next ISS pass and compute position of ISS in case it is visible
-    issp = ISSPass( iss, obs, sun ) # find next ISS pass
+    issp = ISSPass( iss, obs, sun, 15 ) # find next ISS pass, using 15 second intevals for path
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # reset date/time after ISSPass runs
     iss.compute(obs) # recompute ISS
@@ -653,7 +589,7 @@ class menuItem():
         self.subMenu = subMenu
 
 def setMenu():
-    global menuScrn, Menu
+#    global menuScrn, Menu
     Menu = []
 
     txtFont = pygame.font.SysFont('Courier', 24, bold=True)
@@ -694,6 +630,8 @@ def setMenu():
     Menu.append(menuItem('Exit',     (lx,ly),txtFont,Orange,pageExit))
     ly += lh
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
+
+    return Menu
 
 def pageMenu():
     global menuScrn, menuRect, Menu
@@ -813,7 +751,7 @@ if True:
     sleep(2)
     BLST.stop()
 
-setMenu() # set up menu
+Menu = setMenu() # set up menu
 page = pageAuto
 
 while(True):
