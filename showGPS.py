@@ -125,7 +125,7 @@ class showGPS():
         self.screen.blit(t1,t1pos)
     s1 = txtFont.render('{:0>2}/{:0>2}'.format(nsa, ns), 1, txtColor)
     self.screen.blit(s1,(1,44))
-    s2 = txtFont.render(gps.status + '/' + gps.quality, 1, txtColor)
+    s2 = txtFont.render('{}/{}'.format(gps.status,gps.quality), 1, txtColor)
     self.screen.blit(s2,(1,24))
 
     pygame.display.update() #flip()

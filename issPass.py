@@ -29,11 +29,16 @@ def VisualMagnitude(iss, obs, sun):
 class ISSPass:
 # find the next ISS Pass and calculate the path for plotting
 
-  def __init__(self, iss, obs, sun, interval = 15):
+  def __init__(self, iss, obs, interval=15, minalt=10):
 
-    self.iss = iss
-    self.obs = obs
-    self.sun = sun
+    self.iss = iss.copy()
+    self.obs = ephem.Observer() # we need a private copy so we can change the date/time
+    self.obs.lat = obs.lat
+    self.obs.lon = obs.lon
+    self.obs.date = obs.date
+    self.sun = ephem.Sun(self.obs)
+    self.interval = interval
+    self.minalt = minalt
 
     self.nightpass = False
     self.daytimepass = False
@@ -44,6 +49,7 @@ class ISSPass:
     self.maxmag = 100 # brightest magnitude for this pass
     self.visible = False  # is this a visible pass
     self.minrange = 20000  #will hold the closest distance to the observer
+    self.path = [] # will hold a list alt, azi, vmag for the pass at interval
 
     self.iss.compute(self.obs)
 #    print "self.obs.date: {}".format(self.obs.date)
@@ -54,61 +60,68 @@ class ISSPass:
       self.obs.date = ephem.Date(self.obs.date - 30.0 * ephem.minute)
       self.iss.compute(self.obs) # recompute ISS
 
-    xtr, xazr, xtt, xaltt, xts, xazs = self.obs.next_pass(self.iss)
-    self.risetime = xtr
-    self.riseazi = xazr
-    self.transittime = xtt
-    self.transitalt = xaltt
-    self.settime = xts
-    self.setazi = xazs
+    while math.degrees(self.maxalt) < self.minalt: # skip passes that don't reach minimum altitude
 
-    self.path = []
 
-    self.obs.date = ephem.date(xtr) # set to time iss rises
-#    print "self.obs.date: {}".format(self.obs.date)
-    self.iss.compute(self.obs)
-    #obs.horizon = '0'
+      xtr, xazr, xtt, xaltt, xts, xazs = self.obs.next_pass(self.iss)
+      self.risetime = xtr
+      self.riseazi = xazr
+      self.transittime = xtt
+      self.transitalt = xaltt
+      self.settime = xts
+      self.setazi = xazs
 
-    #self.obs.date = tr
-
-    sr_prev = self.obs.previous_rising(ephem.Sun())
-    ss_prev = self.obs.previous_setting(ephem.Sun())
-    sr_next = self.obs.next_rising(ephem.Sun())
-    ss_next = self.obs.next_setting(ephem.Sun())
-
-    if ss_next < sr_next : # next sunset comes before next sun rise
-      self.daytimepass = True # this does not account for twilight passes!
-    elif sr_next < ss_next :
-      self.nightpass = True
-      if xtr-ss_prev > sr_next-xtr :
-        self.beforesunrise = True
-      else :
-        self.aftersunset = True
-
-    path = []
-
-#    print "issPass: interval={}".format(interval)
-    while xtr < xts : # get stats on this pass
-      if not self.iss.eclipsed  :
-        self.alwayseclipsed = False
-      if self.iss.range/1000 < self.minrange:
-        self.minrange = self.iss.range/1000
-      if self.iss.alt > self.maxalt:
-        self.maxalt = self.iss.alt
-#      if self.daytimepass :
-#         mag=100
-#      else :
-      mag=VisualMagnitude(self.iss, self.obs, self.sun)
-      if mag < self.maxmag :
-        self.maxmag = mag
-        magLt = ephem.localtime(xtr)
-        magLalt = self.iss.alt
-
-      path.append((self.iss.alt,self.iss.az,mag))
-
-      xtr = ephem.Date(xtr + ephem.second * interval) #wbp check every interval seconds
-      self.obs.date = xtr
+      self.obs.date = ephem.date(xtr) # set obs to the time iss rises
+#      print "obs.date: {}".format(self.obs.date)
       self.iss.compute(self.obs)
+      #obs.horizon = '0'
+      #self.obs.date = tr
+
+      sr_prev = self.obs.previous_rising(ephem.Sun())
+      ss_prev = self.obs.previous_setting(ephem.Sun())
+      sr_next = self.obs.next_rising(ephem.Sun())
+      ss_next = self.obs.next_setting(ephem.Sun())
+
+      if ss_next < sr_next : # next sunset comes before next sun rise
+        self.daytimepass = True # this does not account for twilight passes!
+      elif sr_next < ss_next :
+        self.nightpass = True
+        if xtr-ss_prev > sr_next-xtr :
+          self.beforesunrise = True
+        else :
+          self.aftersunset = True
+
+      xtn = self.risetime 
+      path = []
+
+      while xtn < xts : # get stats on this pass
+
+        if not self.iss.eclipsed  :
+          self.alwayseclipsed = False
+        if self.iss.range/1000 < self.minrange:
+          self.minrange = self.iss.range/1000
+        if self.iss.alt > self.maxalt:
+          self.maxalt = self.iss.alt
+#        if self.daytimepass :
+#           mag=100
+#        else :
+        mag=VisualMagnitude(self.iss, self.obs, self.sun)
+        if mag < self.maxmag :
+          self.maxmag = mag
+          magLt = ephem.localtime(xtn)
+          magLalt = self.iss.alt
+
+        path.append((self.iss.alt,self.iss.az,mag))
+
+        xtn = ephem.Date(xtn + ephem.second * self.interval) #wbp check every interval seconds
+        self.obs.date = xtn
+        self.iss.compute(self.obs)
+
+#      print 'ISSPass: maxalt {}, minalt {}, obs.date {}'.format(math.degrees(self.maxalt), self.minalt, self.obs.date)
+      # we got to the end of this pass and ISS did not reach minimum altitude
+      # add a little time and try again...
+      self.obs.date = ephem.Date(self.obs.date + 30.0 * ephem.minute) # skip ahead 30 minutes
+      self.iss.compute(self.obs) # recompute ISS and try again
 
     self.path = path
     del path

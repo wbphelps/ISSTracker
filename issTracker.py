@@ -166,8 +166,11 @@ def pageAuto():
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
-    issp = ISSPass( iss, obs, sun, 15 ) # get data on next ISS pass, at 15 second intervals
-    obs.date = utcNow # reset date/time after ISSPass runs
+    print 'Auto: before issp date {}'.format(obs.date)
+    issp = ISSPass( iss, obs, 15 ) # get data on next ISS pass, at 15 second intervals
+    print 'Auto: after issp date {}'.format(obs.date)
+#    obs.date = utcNow # reset date/time after ISSPass runs
+#    sun = ephem.Sun(obs)
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
@@ -189,6 +192,7 @@ def pageAuto():
 
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
+    sun = ephem.Sun(obs)
     sSky = showSky(screen, issp, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageAuto and ephem.localtime(issp.settime) > ephem.localtime(obs.date) :
@@ -251,8 +255,8 @@ def pageDemo():
     sun = ephem.Sun(obs)
     issDemo.compute(obs)
 
-    issp = ISSPass( issDemo, obs, sun, 15 ) # get data on next ISS pass, at 15 second intervals
-    obs.date = utcNow # reset date/time after ISSPass runs
+    issp = ISSPass( iss, obs, 15 ) # get data on next ISS pass, at 15 second intervals
+#    obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
@@ -308,7 +312,7 @@ def showPasses(iss, obs, sun):
     while count < 9: # show next 9 passes
       count += 1
 # find next ISS pass and compute position of ISS
-      issp = ISSPass( iss, obs, sun ) # find next ISS pass
+      issp = ISSPass( iss, obs ) # find next ISS pass
       if issp.daytimepass:
         txtColor = (192,192,0) # dim yellow
       else:
@@ -373,7 +377,7 @@ def pagePasses():
 
 #  ----------------------------------------------------------------
 
-def showTLEs():
+def showTLEs(iss_tle):
 
     scr = pygame.Surface((320,240))
     scrRect = scr.get_rect()
@@ -381,25 +385,25 @@ def showTLEs():
     txtFont = pygame.font.SysFont('Courier', 15, bold=True)
 
     ll = 34
-    txt = tle.tle[0]
+    txt = iss_tle.tle[0]
     txtr = txtFont.render(txt[:ll], 1, White)
     scr.blit(txtr, (0,10))
 #    txtr = txtFont.render(txt[ll:], 1, White)
 #    scr.blit(txtr, (0,30))
 
-    txt = tle.tle[1]
+    txt = iss_tle.tle[1]
     txtr = txtFont.render(txt[:ll], 1, White)
     scr.blit(txtr, (0,35))
     txtr = txtFont.render(txt[ll:], 1, White)
     scr.blit(txtr, (0,55))
 
-    txt = tle.tle[2]
+    txt = iss_tle.tle[2]
     txtr = txtFont.render(txt[:ll], 1, White)
     scr.blit(txtr, (0,80))
     txtr = txtFont.render(txt[ll:], 1, White)
     scr.blit(txtr, (0,100))
 
-    txt = tle.date.strftime('%Y-%m-%d %H:%M:%S')
+    txt = iss_tle.date.strftime('%Y-%m-%d %H:%M:%S')
     txtr = txtFont.render(txt, 1, White)
     scr.blit(txtr, (0,125))
 
@@ -407,9 +411,9 @@ def showTLEs():
     pygame.display.update()
 
 def pageTLEs():
-  global page
+  global page, ISS_TLE
   print 'TLEs'
-  showTLEs()
+  showTLEs(ISS_TLE)
   while page == pageTLEs:
     if checkEvent():
         return
@@ -486,7 +490,7 @@ def pageSky():
     iss.compute(obs)
 
 # find next ISS pass and compute position of ISS in case it is visible
-    issp = ISSPass( iss, obs, sun, 15 ) # find next ISS pass, using 15 second intevals for path
+    issp = ISSPass( iss, obs, 15 ) # find next ISS pass, using 15 second intevals for path
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # reset date/time after ISSPass runs
     iss.compute(obs) # recompute ISS
@@ -721,15 +725,15 @@ if net.up:
 else:
     logging.info("Network down")
 
-tle = issTLE()
-tle.load()
-if (datetime.now()-tle.date) > timedelta(days=1): # if TLE data more than 3 days old
+ISS_TLE = issTLE()
+ISS_TLE.load()
+if (datetime.now()-ISS_TLE.date) > timedelta(days=1): # if TLE data more than 3 days old
     print 'fetching TLEs'
     logging.info("Fetching updated TLE data")
-    tle.fetch()
-    tle.save()
+    ISS_TLE.fetch()
+    ISS_TLE.save()
 
-iss = ephem.readtle(tle.tle[0], tle.tle[1], tle.tle[2] )
+iss = ephem.readtle(ISS_TLE.tle[0], ISS_TLE.tle[1], ISS_TLE.tle[2] )
 iss.compute(obs)
 #print obs.next_pass(iss)
 

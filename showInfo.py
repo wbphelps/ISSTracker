@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 import calendar
 import ephem
 
-import os
+#import os
 # Init framebuffer/touchscreen environment variables
-os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.putenv('SDL_FBDEV'      , '/dev/fb1')
-os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
+#os.putenv('SDL_VIDEODRIVER', 'fbcon')
+#os.putenv('SDL_FBDEV'      , '/dev/fb1')
+#os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
+#os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 Red = pygame.Color('red')
 Orange = pygame.Color('orange')
@@ -24,12 +24,12 @@ Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
 Black = (0,0,0)
 
-col1 = 16
-col2 = 115
+col1 = 5
+col2 = 110
 
 lsize = 28
 line0 = 15
-line1 = 20+lsize
+line1 = 25+lsize
 line2 = line1+lsize
 line3 = line2+lsize
 line4 = line3+lsize
@@ -54,22 +54,23 @@ class showInfo():
 
     txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
-    txt = 'ISS Tracker'
+#    txt = 'ISS Tracker'
+    txt = 'Next ISS Pass'
 #    if page == pageDemo: txt = txt + ' (Demo)'
     txt = txtFont.render(txt , 1, txtColor)
-    self.bg.blit(txt, (15, line0))
+    self.bg.blit(txt, (5, line0))
 
     txtColor = Red
-    txtFont = pygame.font.SysFont("Arial", 26, bold=True)
-    txt = txtFont.render("Start: " , 1, txtColor)
+    txtFont = pygame.font.SysFont("Arial", 24, bold=True)
+    txt = txtFont.render("Start:" , 1, txtColor)
     self.bg.blit(txt, (col1, line1))
-    txt = txtFont.render("Type:  " , 1, txtColor)
+    txt = txtFont.render("Type:" , 1, txtColor)
     self.bg.blit(txt, (col1, line2))
-    txt = txtFont.render("Mag:   " , 1, txtColor)
+    txt = txtFont.render("Magnitude:" , 1, txtColor)
     self.bg.blit(txt, (col1, line3))
-    txt = txtFont.render("Alt:   " , 1, txtColor)
+    txt = txtFont.render("Altitude:" , 1, txtColor)
     self.bg.blit(txt, (col1, line4))
-    txt = txtFont.render("Range: " , 1, txtColor)
+    txt = txtFont.render("Range:" , 1, txtColor)
     self.bg.blit(txt, (col1, line5))
     txt = txtFont.render("Due in:" , 1, txtColor)
     self.bg.blit(txt, (col1, line6))
@@ -80,13 +81,13 @@ class showInfo():
   def show(self, utcNow, issp, obs, iss, sun):
 
     txtColor = Red
-    txtFont = pygame.font.SysFont("Arial", 26, bold=True)
+    txtFont = pygame.font.SysFont("Arial", 24, bold=True)
     self.screen.blit(self.bg, self.bgRect) # write background image
 
     tn = utc_to_local(utcNow).strftime('%H:%M:%S')
     tn = txtFont.render(tn, 1, Orange) # show current time
     rect = tn.get_rect()
-    self.screen.blit(tn, (320 - rect.width, line0))
+    self.screen.blit(tn, (320 - rect.width - 2, 240 - rect.height - 2))
 
     t1 = ephem.localtime(issp.risetime).strftime('%b %d %H:%M:%S')
     txt = txtFont.render(t1 , 1, txtColor)
@@ -106,7 +107,7 @@ class showInfo():
     else:
       txt = "{:0.1f}".format(issp.maxmag)
     txt = txtFont.render(txt, 1, txtColor)
-    self.screen.blit(txt, (col2, line3))
+    self.screen.blit(txt, (col2+30, line3))
     txt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)), 1, txtColor)
     self.screen.blit(txt, (col2, line4))
 
