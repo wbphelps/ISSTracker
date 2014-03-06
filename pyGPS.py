@@ -59,6 +59,22 @@ def tz_offset():
   else:
     return -time.timezone
 
+def c2Float(str):
+  try:
+     f = float(str)
+  except:
+     print 'c2float error {}'.format(str)
+     f = 0
+  return f
+
+def c2Int(str):
+  try:
+     i = int(str)
+  except:
+     print 'c2int error {}'.format(str)
+     i = 0
+  return i
+
 # check serial port???
 #port = serial.Serial("/dev/ttyAMA0", baudrate=9600, timeout=3.0)
 #port = serial.Serial("/dev/ttyUSB0", baudrate=4800, timeout=3.0)
@@ -91,7 +107,12 @@ class pyGPS():
     self.error = ''
     self.quality = 0
     self.altitude = 0
+    self.hDilution = 0
     self.geodiff = 0
+    self.l10_lat = [0,0,0,0,0,0,0,0,0,0] # last 10 latitude values
+    self.l10_lon = [0,0,0,0,0,0,0,0,0,0]
+    self.avg_latitude = 0 # position averaging (simple)
+    self.avg_longitude = 0 # position averaging (simple)
 
   def __exit__(self, type, value, traceback):
     self.port.close() # close serial port
@@ -140,30 +161,33 @@ class pyGPS():
           if self.check(self.rcv): # check checksum
             self.i = 6 # start at 1st token
             gtime = self.ntok()[:6]
-            lat = self.ntok()
+            lat = c2Float(self.ntok())
+            lat = lat//100 + (lat%100)/60.0
             latD = self.ntok()
-            lon = self.ntok()
+            lon = c2Float(self.ntok())
+            lon = lon//100 + (lon%100)/60.0
             lonD = self.ntok()
-            quality = self.ntok()
-            nsats = self.ntok()
-            hDilution = self.ntok()
-            alt = self.ntok()
+            quality = c2Int(self.ntok())
+            nsats = c2Int(self.ntok())
+            hDilution = c2Float(self.ntok())
+            altitude = c2Float(self.ntok())
             altu = self.ntok()
-            gdiff = self.ntok()
+            geodiff = c2Float(self.ntok())
             gdiffu = self.ntok()
 #            print 't: {}, q: {}, alt: {}'.format(gtime,quality, alt)
-            if quality>'0':
+            if quality>0:
 #              print 'alt:{}'.format(alt)
-              altitude = 0
-              if alt.replace('.','',1).isdigit():
-                altitude = float(alt)
-              geodiff = 0
-              if gdiff.replace('.','',1).isdigit():
-                geodiff = float(gdiff)
               with self.lock:
                 self.quality = quality
                 self.altitude = altitude
                 self.geodiff = geodiff
+                self.hDilution = hDilution
+                self.l10_lat.append(lat)
+                self.l10_lat = self.l10_lat[1:]
+                self.l10_lon.append(lon)
+                self.l10_lon = self.l10_lon[1:]
+                self.avg_latitude = math.radians(sum(self.l10_lat)/10.0)
+                self.avg_longitude = math.radians(sum(self.l10_lon)/10.0)
 #              if gtime == '':
 #                print("quality: {}, lat: {}{}, lon: {}{}, time: {}".format(quality,  latD, lat, lonD, lon, 0))
 #              else:
@@ -214,20 +238,12 @@ class pyGPS():
             gtime = self.ntok()[:6]
             self.status = self.ntok()
 #            print ("status: " + self.status)
-            lat = self.ntok()
-            if lat.replace('.','',1).isdigit():
-              lat = float(lat)
-              lat = lat//100 + (lat%100)/60.0
-            else:
-              lat = 0
+            lat = c2Float(self.ntok())
+            lat = lat//100 + (lat%100)/60.0
             latD = self.ntok()
             if latD == 'S': lat = -lat
-            lon = self.ntok()
-            if lon.replace('.','',1).isdigit():
-              lon = float(lon)
-              lon = lon//100 + (lon%100)/60.0
-            else:
-              lon = 0
+            lon = c2Float(self.ntok())
+            lon = lon//100 + (lon%100)/60.0
             lonD = self.ntok()
             if lonD == 'W': lon = -lon
             spd = self.ntok()
@@ -238,8 +254,8 @@ class pyGPS():
 #            print("status: {}, lat: {}, lon: {}, time: {}".format(self.status, lat, lon, dt))
             with self.lock:
               self.statusOK = False
-              self.lat = math.radians(lat)
-              self.lon = math.radians(lon)
+              self.latitude = math.radians(lat)
+              self.longitude = math.radians(lon)
               self.datetime = dt
               if self.status == 'A':
                 self.statusOK = True

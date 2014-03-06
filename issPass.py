@@ -45,7 +45,7 @@ class ISSPass:
     self.beforesunrise = False
     self.aftersunset = False
     self.alwayseclipsed = True # in this pass is the ISS always eclipsed (in shadow)
-    self.maxalt = 0 # max altitude for this pass
+    self.maxalt = -1 # max altitude for this pass
     self.maxmag = 100 # brightest magnitude for this pass
     self.visible = False  # is this a visible pass
     self.minrange = 20000  #will hold the closest distance to the observer

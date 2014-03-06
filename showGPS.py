@@ -66,6 +66,9 @@ class showGPS():
 
     pygame.display.update()
 
+#    self.avg_lat = 0
+#    self.avg_lon = 0
+
 
   def plot(self, gps, obs, sun):
 
@@ -76,13 +79,25 @@ class showGPS():
 
     t1 = txtFont.render(gps.datetime.strftime('%H:%M:%S'), 1, txtColor) # time
     self.screen.blit(t1, (0,0)) # time
-    t2 = txtFont.render(gps.datetime.strftime('%y-%m-%d'), 1, txtColor) # date
+
+    t2 = txtFont.render(gps.datetime.strftime('%Y'), 1, txtColor) # date
     rect = t2.get_rect()
     self.screen.blit(t2, (320 - rect.width, 0))
+    t3 = txtFont.render(gps.datetime.strftime('%m/%d'), 1, txtColor) # date
+    rect = t3.get_rect()
+    self.screen.blit(t3, (320 - rect.width, 24))
 
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
 
-    alt = gps.altitude + gps.geodiff
+#    tgeod = txtFont.render('{:5.1f}'.format(gps.geodiff), 1, txtColor)
+#    rect = tgeod.get_rect()
+#    self.screen.blit(tgeod, (320 - rect.width, 140))
+
+#    tdil = txtFont.render('{:5.1f}m'.format(gps.hDilution), 1, txtColor)
+#    rect = tdil.get_rect()
+#    self.screen.blit(tdil, (320 - rect.width, 160))
+
+    alt = gps.altitude #+ gps.geodiff
     if alt<100:
       talt = '{:6.1f}m'.format(alt)
     else:
@@ -91,11 +106,19 @@ class showGPS():
     rect = talt.get_rect()
     self.screen.blit(talt, (320 - rect.width, 180))
 
-    tlat = txtFont.render('{:6.4f}'.format(math.degrees(gps.lat)), 1, txtColor)
+    if gps.quality == 2:
+      fmt = '{:7.5f}' # differential GPS - 1 meter accuracy!!!
+    else:
+      fmt = '{:7.5f}' # normal signal
+
+#    self.avg_lat = (self.avg_lat + math.degrees(gps.lat)) / 2.0
+#    self.avg_lon = (self.avg_lon + math.degrees(gps.lon)) / 2.0
+
+    tlat = txtFont.render(fmt.format(math.degrees(gps.avg_latitude)), 1, txtColor)
     rect = tlat.get_rect()
     self.screen.blit(tlat, (320 - rect.width, 200))
 
-    tlon = txtFont.render('{:6.4f}'.format(math.degrees(gps.lon)), 1, txtColor)
+    tlon = txtFont.render(fmt.format(math.degrees(gps.avg_longitude)), 1, txtColor)
     rect = tlon.get_rect()
     self.screen.blit(tlon, (320 - rect.width, 220))
 
@@ -123,10 +146,14 @@ class showGPS():
         t1pos.centerx = xy[0]
         t1pos.centery = xy[1]
         self.screen.blit(t1,t1pos)
-    s1 = txtFont.render('{:0>2}/{:0>2}'.format(nsa, ns), 1, txtColor)
-    self.screen.blit(s1,(1,44))
-    s2 = txtFont.render('{}/{}'.format(gps.status,gps.quality), 1, txtColor)
-    self.screen.blit(s2,(1,24))
+
+    s1 = txtFont.render('{}/{}'.format(gps.status,gps.quality), 1, txtColor)
+    self.screen.blit(s1,(1,24))
+    s2 = txtFont.render('{:0>2}/{:0>2}'.format(nsa, ns), 1, txtColor)
+    self.screen.blit(s2,(1,44))
+
+    tdil = txtFont.render('{:0.1f}m'.format(gps.hDilution), 1, txtColor)
+    self.screen.blit(tdil, (1, 64))
 
     pygame.display.update() #flip()
 

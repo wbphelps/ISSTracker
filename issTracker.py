@@ -166,9 +166,9 @@ def pageAuto():
     sun = ephem.Sun(obs)
     iss.compute(obs)
 
-    print 'Auto: before issp date {}'.format(obs.date)
+#    print 'Auto: before issp date {}'.format(obs.date)
     issp = ISSPass( iss, obs, 15 ) # get data on next ISS pass, at 15 second intervals
-    print 'Auto: after issp date {}'.format(obs.date)
+#    print 'Auto: after issp date {}'.format(obs.date)
 #    obs.date = utcNow # reset date/time after ISSPass runs
 #    sun = ephem.Sun(obs)
 
@@ -223,15 +223,6 @@ def pageDemo():
   stime = 0.1 # 10x normal speed
   print 'Demo'
 
-  utcNow = datetime(2014, 2, 6, 2, 58, 30) # 1 minute before ISS is due
-#  utcNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
-#  utcNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
-#  utcNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
-#  utcNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
-#  utcNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
-#  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
-#  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
-
   iss_tle = ('ISS (ZARYA)', 
     '1 25544U 98067A   14043.40180105  .00016203  00000-0  28859-3 0  6670',
     '2 25544  51.6503 358.1745 0004087 127.2033  23.9319 15.50263757871961')
@@ -248,6 +239,15 @@ def pageDemo():
 #dat2e = Feb 16 2014
   issDemo = ephem.readtle(iss_tle[0], iss_tle[1], iss_tle[2] )
 
+  utcNow = datetime(2014, 2, 6, 3, 8, 30) # 3 minutes before ISS is due
+#  utcNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 14, 1, 22, 0) # 1 minute before ISS is due
+#  utcNow = datetime(2014, 2, 14, 6, 18, 0) # test midpass startup
+#  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
+#  utcNow = datetime(2014, 2, 16, 23, 1, 0) # just before ISS is due
+
   while (page == pageDemo):
     if checkEvent(): return
 
@@ -256,7 +256,7 @@ def pageDemo():
     issDemo.compute(obs)
 
     issp = ISSPass( iss, obs, 15 ) # get data on next ISS pass, at 15 second intervals
-#    obs.date = utcNow # reset date/time after ISSPass runs
+    obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issp.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
@@ -296,7 +296,7 @@ def pageDemo():
 
 #  ----------------------------------------------------------------
 
-def showPasses(iss, obs, sun):
+def showPasses(iss, obs, sun): 
 
     scr = pygame.Surface((320,240))
     scrRect = scr.get_rect()
@@ -312,7 +312,7 @@ def showPasses(iss, obs, sun):
     while count < 9: # show next 9 passes
       count += 1
 # find next ISS pass and compute position of ISS
-      issp = ISSPass( iss, obs ) # find next ISS pass
+      issp = ISSPass( iss, obs, 15, 0 ) # find next ISS pass (even low ones)
       if issp.daytimepass:
         txtColor = (192,192,0) # dim yellow
       else:
