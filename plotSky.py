@@ -80,11 +80,11 @@ class plotPlanets():
     self.pline = 235
     self.pFont = pygame.font.SysFont('Arial', 16, bold=True)
 
-    self.plotPlanet(ephem.Saturn(), (255,128,255), 3)
-    self.plotPlanet(ephem.Jupiter(),(255,255,128), 3)
-    self.plotPlanet(ephem.Mars(),  (255,0,0), 3)
-    self.plotPlanet(ephem.Venus(), (255,255,255), 3)
-    self.plotPlanet(ephem.Mercury(), (128,255,255), 3)
+    self.plotPlanet(ephem.Saturn(), (245,128,245), 3)
+    self.plotPlanet(ephem.Jupiter(),(245,245,128), 3)
+    self.plotPlanet(ephem.Mars(),  (245,0,0), 3)
+    self.plotPlanet(ephem.Venus(), (245,245,245), 3)
+    self.plotPlanet(ephem.Mercury(), (128,245,245), 3)
 
     moon = ephem.Moon()
     moon.compute(obs)

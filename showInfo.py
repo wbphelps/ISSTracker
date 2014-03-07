@@ -64,7 +64,7 @@ class showInfo():
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
     txt = txtFont.render("Start:" , 1, txtColor)
     self.bg.blit(txt, (col1, line1))
-    txt = txtFont.render("Type:" , 1, txtColor)
+    txt = txtFont.render("Visible:" , 1, txtColor)
     self.bg.blit(txt, (col1, line2))
     txt = txtFont.render("Magnitude:" , 1, txtColor)
     self.bg.blit(txt, (col1, line3))
@@ -93,13 +93,14 @@ class showInfo():
     txt = txtFont.render(t1 , 1, txtColor)
     self.screen.blit(txt, (col2, line1))
 
-    if issp.daytimepass:
-        txt = "Daytime"
-    elif issp.nightpass and issp.beforesunrise:
-        txt = "Morning"
-    elif issp.nightpass and issp.aftersunset:
-        txt = "Evening"
-    txt = txtFont.render(txt , 1, txtColor)
+    if issp.visible:
+      tv = 'Yes!'
+      tvc = Green
+    else:
+      tv = 'No'
+      tvc = Red
+
+    txt = txtFont.render(tv , 1, tvc)
     self.screen.blit(txt, (col2, line2))
 
     if (issp.maxmag>99):

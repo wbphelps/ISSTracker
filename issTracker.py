@@ -13,7 +13,7 @@
 
 #import atexit
 import gc
-import wiringpi2
+import wiringpi2 as wiringpi
 import errno
 import os, sys, signal
 import traceback
@@ -37,6 +37,11 @@ from checkNet import checkNet
 from pyGPS import pyGPS, satInfo
 
 # -------------------------------------------------------------
+
+switch_1 = 1 # GPIO pin 18 - left to right with switches on the top
+switch_2 = 2 # GPIO pin 21/27
+switch_3 = 3 # GPIO pin 22
+switch_4 = 4 # GPIO pin 23
 
 backlightpin = 252
 
@@ -111,8 +116,20 @@ os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
 os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 # Set up GPIO pins
-gpio = wiringpi2.GPIO(wiringpi2.GPIO.WPI_MODE_GPIO)  
-#gpio.pinMode(backlightpin,gpio.OUTPUT)  
+#gpio = wiringpi.GPIO(wiringpi.GPIO.WPI_MODE_GPIO)
+#gpio.pinMode(backlightpin,gpio.OUTPUT)
+
+#wiringpi.wiringPiSetupGpio() # use GPIO pin numbers
+wiringpi.wiringPiSetup() # use wiringpi pin numbers
+
+wiringpi.pinMode(switch_1,0) # input
+wiringpi.pullUpDnControl(switch_1, 2)
+wiringpi.pinMode(switch_2,0) # input
+wiringpi.pullUpDnControl(switch_2, 2)
+wiringpi.pinMode(switch_3,0) # input
+wiringpi.pullUpDnControl(switch_3, 2)
+wiringpi.pinMode(switch_4,0) # input
+wiringpi.pullUpDnControl(switch_4, 2)
 
 # Init pygame and screen
 pygame.init() 
@@ -239,7 +256,7 @@ def pageDemo():
 #dat2e = Feb 16 2014
   issDemo = ephem.readtle(iss_tle[0], iss_tle[1], iss_tle[2] )
 
-  utcNow = datetime(2014, 2, 6, 3, 8, 30) # 3 minutes before ISS is due
+  utcNow = datetime(2014, 2, 6, 2, 59, 30) # about 2 minutes before ISS is due
 #  utcNow = datetime(2014, 2, 13, 0, 34, 39) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 13, 22, 13, 40) # 1 minute before ISS is due
 #  utcNow = datetime(2014, 2, 13, 0, 35, 9) # 1 minute before ISS is due
@@ -255,7 +272,7 @@ def pageDemo():
     sun = ephem.Sun(obs)
     issDemo.compute(obs)
 
-    issp = ISSPass( iss, obs, 15 ) # get data on next ISS pass, at 15 second intervals
+    issp = ISSPass( issDemo, obs, 15 ) # get data on next ISS pass, at 15 second intervals
     obs.date = utcNow # reset date/time after ISSPass runs
 
 # if ISS is not up, display the Info screen and wait for it to rise
@@ -293,6 +310,29 @@ def pageDemo():
     if page == pageDemo: page = pageAuto # could also be menu...
   
   print 'end Demo'
+
+#  ----------------------------------------------------------------
+
+def pageCrew():
+  global page, pageLast
+  from showCrew import showCrew
+  print 'Crew'
+
+  while (page == pageCrew):
+
+    if checkEvent(): return
+
+    tNow = datetime.utcnow()
+#    obs.date = tNow
+#    sun = ephem.Sun(obs)
+#    iss.compute(obs)
+
+    showCrew(screen)
+
+    while (page == pageCrew): # wait for a menu selection
+      if checkEvent():
+        return
+      sleep(0.1)
 
 #  ----------------------------------------------------------------
 
@@ -603,14 +643,16 @@ def setMenu():
 
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
 
-    lx = 20 # left side
-    ly = 30 # line position
-    lh = 30 # line height
+    lx = 10 # left side
+    ly = 10 # line position
+    lh = 28 # line height
     Menu.append(menuItem('Auto',   (lx,ly),txtFont,Yellow,pageAuto))
     ly += lh
     Menu.append(menuItem('Demo',   (lx,ly),txtFont,Yellow,pageDemo))
     ly += lh
     Menu.append(menuItem('Sky',    (lx,ly),txtFont,Yellow,pageSky))
+    ly += lh
+    Menu.append(menuItem('Crew', (lx,ly),txtFont,Yellow,pageCrew))
     ly += lh
     Menu.append(menuItem('Passes', (lx,ly),txtFont,Yellow,pagePasses))
     ly += lh
@@ -620,8 +662,8 @@ def setMenu():
     Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Yellow,pageWifi,False,True))
 
     lx = 160 # right side
-    ly = 30 # line position
-    lh = 30 # line height
+    ly = 10 # line position
+#    lh = 28 # line height
     Menu.append(menuItem('DateTime', (lx,ly),txtFont,Yellow,pageDateTime,False,True))
     ly += lh
     Menu.append(menuItem('Location', (lx,ly),txtFont,Yellow,pageLocation,False,True))
@@ -632,6 +674,7 @@ def setMenu():
     Menu.append(menuItem('Sleep',    (lx,ly),txtFont,(0,127,255),pageSleep,False,True))
     ly += lh
     Menu.append(menuItem('Exit',     (lx,ly),txtFont,Orange,pageExit))
+    ly += lh
     ly += lh
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
@@ -663,6 +706,15 @@ global menuScrn,  Menu
 def checkEvent():
     global page
     global menuScrn, menuRect, Menu, pageLast
+
+    sw1 = not wiringpi.digitalRead(switch_1) # Read switch
+    if sw1: print 'switch 1'
+    sw2 = not wiringpi.digitalRead(switch_2) # Read switch
+    if sw2: print 'switch 2'
+    sw3 = not wiringpi.digitalRead(switch_3) # Read switch
+    if sw3: print 'switch 3'
+    sw4 = not wiringpi.digitalRead(switch_4) # Read switch
+    if sw4: print 'switch 4'
 
 #    ev = pygame.event.poll()
     ret = False

@@ -44,91 +44,95 @@ def getxy(alt, azi): # alt, az in radians
 
 class showSky():
 
-  def __init__(self, screen, issp, obs, iss, sun):
+  def __init__(self, screen, issp, obs, iss, sun, x=0, y=0):
 
     self.screen = screen
-    self.bg = pygame.image.load("ISSTracker7Dim.png") # the non-changing background
-    self.bgColor = (0,0,0)
-    self.bgRect = self.bg.get_rect()
+    self.pos = (x,y)
 
-    sunaltd = math.degrees(sun.alt)
-    if (sunaltd > 0):
-        self.bgColor = (32,32,92) # daytime
-    elif (sunaltd > -15): # twilight ???
-        self.bgColor = (16,16,64)
-    else:
-        self.bgColor = (0,0,0)
+    self.window = screen.copy() # make a copy of the screen
 
-    pygame.draw.circle(self.bg, self.bgColor, (160,120), 120, 0)
-    pygame.draw.circle(self.bg, (0,255,255), (160,120), 120, 1)
-
-    vispath = []
-    nvispath = []
-    firstvis = True
-    firstnvis = True
-
-    if issp.daytimepass:
-        visColor = Yellow # yellow
-    else:
-        visColor = White # white
-
-# plot lines for ISS path - visible & non-visible
-#    for aam in issp.path: # alt, az, mag
-#      if aam[2]<99: # visible?
-#        if firstvis and not firstnvis: # if path started with non-visible portion
-#          print 'linking nvis to vis'
-#          vispath.append(nvispath[-1]) # connect with last point of non-visible path
-#        firstvis = False
-#        vispath.append(getxy(aam[0],aam[1]))
-#      else:
-#        if firstnvis and not firstvis: # if path started with visible portion
-#          print 'linking vis to nvis'
-#          nvispath.append(vispath[-1]) # connect with last point of visible path
-#        firstnvis = False
-#        nvispath.append(getxy(aam[0],aam[1]))
-
-#    if (len(vispath)>1):  pygame.draw.lines(self.bg, viscolor, False, vispath, 1)
-#    if (len(nvispath)>1):  pygame.draw.lines(self.bg, (0,127,255), False, nvispath, 1)
-
-# plot circles for iss path, size shows magnitude
-    for aam in issp.path: # alt, az, mag
-      sz = int(1-aam[2] * 2 + 0.5) # vmag * 3 (sort of) (round makes a float!)
-      if sz<2: sz = 2 # minimum radius
-      if aam[2]<99: # visible
-        pColor = visColor
-      else:
-        pColor = (0,127,255)
-      pygame.draw.circle(self.bg, pColor, getxy(aam[0],aam[1]), sz, 1)
-
-    txtColor = Cyan
-    txtFont = pygame.font.SysFont("Arial", 14, bold=True)
-    txt = txtFont.render("N" , 1, txtColor)
-    self.bg.blit(txt, (155, 0))
-    txt = txtFont.render("S" , 1, txtColor)
-    self.bg.blit(txt, (155, 222))
-    txt = txtFont.render("E" , 1, txtColor)
-    self.bg.blit(txt, (43, 112))
-    txt = txtFont.render("W" , 1, txtColor)
-    self.bg.blit(txt, (263, 112))
-
-    self.issImg = pygame.image.load("ISSWm.png")
+    issImg = pygame.image.load("ISSWm52x52.png")
+    self.issImg  = pygame.transform.scale(issImg, (30,30))
     self.issRect = self.issImg.get_rect()
 
-    pygame.display.update()
+    self.BG = screen.copy() # make another copy for the background
+    self.BGupdate = datetime.now() - timedelta(seconds=61) # force BG update
+
+    self.drawBG(issp, obs, sun) # fill in the background & draw it
+
+# this draws the entire background & sky plot each time
+# it doesn't need to be run so often - once a minute is plenty...
+
+  def drawBG(self, issp, obs, sun):
+
+#    if (datetime.now() - self.BGupdate).total_seconds() > 60:
+
+      self.BGupdate = datetime.now()
+
+      self.BG.fill((0,0,0)) # clear window
+#      self.BG = pygame.image.load("ISSTracker7Dim.png") # load a background image
+      image = pygame.Surface.convert(pygame.image.load("ISSTracker7Dim.png"))
+#      image  = pygame.transform.scale(image, (320,240))
+      self.BG.blit(image, (0,0))
+
+      self.bgColor = (0,0,0)
+      sunaltd = math.degrees(sun.alt)
+      if (sunaltd > 0):
+        self.bgColor = (32,32,92) # daytime
+      elif (sunaltd > -15): # twilight ???
+        self.bgColor = (16,16,64)
+      else:
+        self.bgColor = (0,0,0)
+
+      pygame.draw.circle(self.BG, self.bgColor, (160,120), 120, 0)
+      pygame.draw.circle(self.BG, (0,255,255), (160,120), 120, 1)
+
+      if issp.daytimepass:
+        visColor = Yellow # yellow
+      else:
+        visColor = White # white
+
+      txtColor = Cyan
+      txtFont = pygame.font.SysFont("Arial", 14, bold=True)
+      txt = txtFont.render("N" , 1, txtColor)
+      self.BG.blit(txt, (155, 0))
+      txt = txtFont.render("S" , 1, txtColor)
+      self.BG.blit(txt, (155, 222))
+      txt = txtFont.render("E" , 1, txtColor)
+      self.BG.blit(txt, (43, 112))
+      txt = txtFont.render("W" , 1, txtColor)
+      self.BG.blit(txt, (263, 112))
+
+      plotStars(self.BG, obs, sun)
+      plotPlanets(self.BG, obs, sun)
+
+# plot circles for iss path, size shows magnitude
+      for aam in issp.path: # alt, az, mag
+        sz = int(1-aam[2] * 2.5 + 0.5) # vmag * 3 (sort of) (round makes a float!)
+        if sz<2: sz = 2 # minimum radius
+        if aam[2]<99: # visible
+          pColor = visColor
+        else:
+          pColor = (0,127,255)
+        pygame.draw.circle(self.BG, pColor, getxy(aam[0],aam[1]), sz, 1)
+
 
   def plot(self, issp, utcNow, obs, iss, sun, issmag):
+
+    if (datetime.now() - self.BGupdate).total_seconds() > 60:
+      self.drawBG(issp, obs, sun) # update background image once a minute
+
+    self.window.blit(self.BG,(0,0)) # paint background image
 
     txtColor = Yellow
     txtFont = pygame.font.SysFont("Arial", 20, bold=True)
     issalt = math.degrees(iss.alt)
     issaz = math.degrees(iss.az)
 
-    self.screen.blit(self.bg, self.bgRect) # paint background image on screen
-
 #    t1 = ephem.localtime(obs.date).strftime("%H:%M:%S")
     t1txt = utc_to_local(utcNow).strftime('%H:%M:%S')
     t1 = txtFont.render(t1txt, 1, txtColor)
-    self.screen.blit(t1, (0, 0))
+    self.window.blit(t1, (0, 0))
 
     if (issalt>0): # if ISS is up, show the time left before it will set
       td = issp.settime - obs.date
@@ -140,16 +144,18 @@ class showSky():
       t2txt = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
     t2 = txtFont.render(t2txt, 1, txtColor)
     r2 = t2.get_rect()
-    self.screen.blit(t2, (320 - r2.width, 0))
+    self.window.blit(t2, (320 - r2.width, 0))
 
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
     if (issmag<99):
       magtxt = "{:5.1f}".format(issmag)
+      issColor = Green
     else:
       magtxt = " - - -"
+      issColor = Blue
     tmag = txtFont.render(magtxt, 1, txtColor)
     rmag = tmag.get_rect()
-    self.screen.blit(tmag, (320 - rmag.width, 160))
+    self.window.blit(tmag, (320 - rmag.width, 160))
 
     if (issp.maxmag>99):
       maxmagtxt = '---'
@@ -157,30 +163,27 @@ class showSky():
       maxmagtxt = "{:5.1f}".format(issp.maxmag)
     tmaxmag = txtFont.render(maxmagtxt, 1, txtColor)
     rmaxmag = tmaxmag.get_rect()
-    self.screen.blit(tmaxmag, (320 - rmaxmag.width, 40))
+    self.window.blit(tmaxmag, (320 - rmaxmag.width, 40))
 
     trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
     rrng = trng.get_rect()
-    self.screen.blit(trng, (320 - rrng.width, 220))
+    self.window.blit(trng, (320 - rrng.width, 220))
 
     tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
     rminrng = tminrng.get_rect()
-    self.screen.blit(tminrng, (320 - rminrng.width, 20))
+    self.window.blit(tminrng, (320 - rminrng.width, 20))
 
     talt = txtFont.render("{:3.0f}".format(issalt) , 1, txtColor)
     ralt = talt.get_rect()
-    self.screen.blit(talt, (320 - ralt.width, 180))
+    self.window.blit(talt, (320 - ralt.width, 180))
 
     tazi = txtFont.render("{:3.0f}".format(issaz) , 1, txtColor)
     razi = tazi.get_rect()
-    self.screen.blit(tazi, (320 - razi.width, 200))
+    self.window.blit(tazi, (320 - razi.width, 200))
 
     tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
     rmaxalt = tmaxalt.get_rect()
-    self.screen.blit(tmaxalt, (320 - rmaxalt.width, 60))
-
-    plotStars(self.screen, obs, sun)
-    plotPlanets(self.screen, obs, sun)
+    self.window.blit(tmaxalt, (320 - rmaxalt.width, 60))
 
     if (issalt>0):
       (x,y) = getxy(iss.alt,iss.az) # show where ISS is
@@ -188,7 +191,9 @@ class showSky():
       (x,y) = getxy(0, issp.riseazi) # show where ISS will rise
     self.issRect.centerx = x 
     self.issRect.centery = y
-    self.screen.blit(self.issImg, self.issRect)
+    self.window.blit(self.issImg, self.issRect)
+    pygame.draw.circle(self.window, issColor, (x,y), self.issRect.width/2, 1)
 
+    self.screen.blit(self.window,self.pos)
     pygame.display.update() # flip()
 

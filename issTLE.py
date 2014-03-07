@@ -31,7 +31,7 @@ class issTLE:
         except :
             print "Error loading TLE data from file. recreating " + self.configFile
 #            logging.warning( 'Error loading TLE data from file.  recreating ' + self.configFile )
-            self.loaddefault()
+            self.load_default()
             self.save()
 
         try :
