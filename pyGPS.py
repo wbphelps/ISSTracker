@@ -127,10 +127,13 @@ class pyGPS():
         break
       chk1 = chk1 ^ ord(ch)
       i += 1
-    chk2 = int(rcv[i+1:i+3],16)
+    try:
+      chk2 = int(rcv[i+1:i+3],16)
+    except:
+      chk2 = 0
 #    print("chk1:" + hex(chk1) + " chk2:" + hex(chk2))
     if (chk1 != chk2):
-      print "Checksum error"
+      print 'Err: {}'.format(self.rcv[:-1])
       return False
     else:
       return True
@@ -151,13 +154,14 @@ class pyGPS():
       self.running = True
     sats = []
     while self._run:
-      self.rcv = self.port.readline()
-      try:
 
+      self.rcv = self.port.readline()
+
+      try:
 #  $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,q,ns,h.d,a.a,M,x.x,M,x.x,xxxx*hh
         if (self.rcv[:7] == '$GPGGA,'):
           self.rcv = self.rcv[1:] # remove $
-#          print("rcv:" + repr(self.rcv))
+#          print("GGA:" + repr(self.rcv))
           if self.check(self.rcv): # check checksum
             self.i = 6 # start at 1st token
             gtime = self.ntok()[:6]
@@ -198,7 +202,7 @@ class pyGPS():
 
         if (self.rcv[:7] == '$GPGSV,'): # satellite info
           self.rcv = self.rcv[1:] # remove $
-#          print("rcv:" + repr(self.rcv))
+#          print("GSV:" + repr(self.rcv))
           if self.check(self.rcv):
             self.i = 6 # start at 1st token
             nmsgs = self.ntok()
@@ -232,7 +236,7 @@ class pyGPS():
 
         if (self.rcv[:7] == '$GPRMC,'): # required miminum 
           self.rcv = self.rcv[1:] # remove $
-#          print("rcv:" + repr(self.rcv))
+#          print("RMC:" + repr(self.rcv))
           if self.check(self.rcv): # check checksum
             self.i = 6 # start at 1st token
             gtime = self.ntok()[:6]
@@ -250,7 +254,10 @@ class pyGPS():
             crs = self.ntok()
             gdate = self.ntok()
             mag = self.ntok()
-            dt = datetime.strptime(gdate+gtime, "%d%m%y%H%M%S") + timedelta(seconds=tz_offset())
+            try:
+              dt = datetime.strptime(gdate+gtime, "%d%m%y%H%M%S") + timedelta(seconds=tz_offset())
+            except:
+              dt = datetime.now() # fake it?
 #            print("status: {}, lat: {}, lon: {}, time: {}".format(self.status, lat, lon, dt))
             with self.lock:
               self.statusOK = False
@@ -259,11 +266,13 @@ class pyGPS():
               self.datetime = dt
               if self.status == 'A':
                 self.statusOK = True
+
       except:
         print self.rcv
         print ("Error: "),sys.exc_info()[0]
         self.error = format(sys.exc_info()[0])
         raise
+
     print 'GPS stop'  
 
   def start(self):

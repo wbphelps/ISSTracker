@@ -695,7 +695,7 @@ def drawMenu(Menu):
             pygame.draw.rect(menuScrn, Red, item.rect, 1)
 
 def pageMenu():
-    global menuScrn, menuRect, Menu
+    global menuScrn, menuRect
 
     screen.blit(menuScrn, menuRect)
     pygame.display.update()
