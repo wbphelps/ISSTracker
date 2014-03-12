@@ -8,13 +8,6 @@ import urllib
 import urllib2
 from checkNet import checkNet
 
-#import os
-# Init framebuffer/touchscreen environment variables
-#os.putenv('SDL_VIDEODRIVER', 'fbcon')
-#os.putenv('SDL_FBDEV'      , '/dev/fb1')
-#os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-#os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
-
 Red = pygame.Color('red')
 Orange = pygame.Color('orange')
 Green = pygame.Color('green')
@@ -24,18 +17,6 @@ Cyan = pygame.Color('cyan')
 Magenta = pygame.Color('magenta')
 White = pygame.Color('white')
 Black = (0,0,0)
-
-col1 = 0
-col2 = 180
-
-lsize = 56
-line0 = 30
-line1 = 40+lsize
-line2 = line1+lsize
-line3 = line2+lsize
-line4 = line3+lsize
-line5 = line4+lsize
-line6 = line5+lsize
 
 def utc_to_local(utc_dt):
     # get integer timestamp to avoid precision lost
@@ -65,54 +46,22 @@ class showCrew():
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
 #    self.window.blit(self.bg, self.bgRect) # write background image
 
-    self.imgname = 'isscrew.jpg' # use fixed name so we can find it if no network
+    self.imagename = 'isscrew.jpg' # use fixed name so we can find it if no network
 
     if checkNet().up:
-      uhead = "http://www.nasa.gov"
-      url1 = uhead + "/mission_pages/station/main"
-      data = urllib2.urlopen(url1).read()
+#      image_url = 'http://www.meier-phelps.com/ISS/isscrew.annotated.png'
+      image_url = 'http://www.meier-phelps.com/ISS/isscrew.annotated.largefont.png'
 
-      i1 = data.find("Read about the current crew")
-      d1 = data[i1-100:i1+100]
-#      print 'd1: {}'.format(d1)
+      urllib.urlretrieve(image_url, self.imagename)
 
-      i2 = d1.find('href="')
-      d2 = d1[i2:i2+100]
-#      print 'd2: {}'.format(d2)
-
-      url2 = d2.split('"')[1]
-#      print 'url2: {}'.format(d2)
-
-      data = urllib2.urlopen(url2).read()
-
-      i1 = data.find('content="Expedition ')
-      d1 = data[i1:i1+100]
-#     print 'd1: {}'.format(d1)
-
-      expname = d1.split('"')[1] # expedition name
-#      print 'expname {}'.format(expname)
-
-      i2 = data.find(expname + ' crew portrait')
-      d2 = data[i2:i2+200]
-
-      i3 = d2.find('src="')
-      d3 = d2[i3:i3+100]
-      imgurl = d3.split('"')[1]
-#      print 'imgurl: {}'.format(imgurl)
-      d4 = imgurl.split('/')
-#      imgname = d4[-1]
-#      print imgname
-
-      urllib.urlretrieve(uhead + imgurl, self.imgname)
-
-    self.imagename = "isscrew.annotated.png" # use an annotated image instead
+#    self.imagename = "isscrew.annotated.png" # use an annotated image instead
     image = pygame.Surface.convert(pygame.image.load(self.imagename))
     image  = pygame.transform.scale(image, (320,240))
- 
+
     self.window.blit(image, (0,0,320,240))
 
-    txt = txtFont.render(expname + ' Crew' , 1, txtColor)
-    self.window.blit(txt, (0, 0))
+#    txt = txtFont.render(expname + ' Crew' , 1, txtColor)
+#    self.window.blit(txt, (0, 0))
 
     self.screen.blit(self.window, self.windowRect)
 #    pygame.display.flip()

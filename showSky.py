@@ -5,15 +5,7 @@ from pygame.locals import *
 import math
 from datetime import datetime, timedelta
 import calendar
-
-from plotSky import plotStars, plotPlanets
-
-import os
-# Init framebuffer/touchscreen environment variables
-os.putenv('SDL_VIDEODRIVER', 'fbcon')
-os.putenv('SDL_FBDEV'      , '/dev/fb1')
-os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
+from plotSky import plotSky
 
 Red = pygame.Color('red')
 Orange = pygame.Color('orange')
@@ -50,13 +42,17 @@ class showSky():
     self.pos = (x,y)
 
     self.window = screen.copy() # make a copy of the screen
-
-    issImg = pygame.image.load("ISSWm52x52.png")
-    self.issImg  = pygame.transform.scale(issImg, (30,30))
-    self.issRect = self.issImg.get_rect()
+    rect = self.window.get_rect()
+    self.height = rect.height
+    self.width = rect.width
 
     self.BG = screen.copy() # make another copy for the background
     self.BGupdate = datetime.now() - timedelta(seconds=61) # force BG update
+
+#    issImg = pygame.image.load("ISSWm52x52.png")
+    issImg = pygame.Surface.convert_alpha(pygame.image.load("ISSWm52x52.png"))
+    self.issImg  = pygame.transform.scale(issImg, (30,30))
+    self.issRect = self.issImg.get_rect()
 
     self.drawBG(issp, obs, sun) # fill in the background & draw it
 
@@ -65,56 +61,26 @@ class showSky():
 
   def drawBG(self, issp, obs, sun):
 
-#    if (datetime.now() - self.BGupdate).total_seconds() > 60:
+    self.BGupdate = datetime.now()
 
-      self.BGupdate = datetime.now()
+    Sky = plotSky(self.BG, obs, 40, 0, 120) # draw the sky background & compass points
+    Sky.plotStars(obs) # add stars
+    Sky.plotPlanets(obs) # add planets
 
-      self.BG.fill((0,0,0)) # clear window
-#      self.BG = pygame.image.load("ISSTracker7Dim.png") # load a background image
-      image = pygame.Surface.convert(pygame.image.load("ISSTracker7Dim.png"))
-#      image  = pygame.transform.scale(image, (320,240))
-      self.BG.blit(image, (0,0))
-
-      self.bgColor = (0,0,0)
-      sunaltd = math.degrees(sun.alt)
-      if (sunaltd > 0):
-        self.bgColor = (32,32,92) # daytime
-      elif (sunaltd > -15): # twilight ???
-        self.bgColor = (16,16,64)
-      else:
-        self.bgColor = (0,0,0)
-
-      pygame.draw.circle(self.BG, self.bgColor, (160,120), 120, 0)
-      pygame.draw.circle(self.BG, (0,255,255), (160,120), 120, 1)
-
-      if issp.daytimepass:
-        visColor = Yellow # yellow
-      else:
-        visColor = White # white
-
-      txtColor = Cyan
-      txtFont = pygame.font.SysFont("Arial", 14, bold=True)
-      txt = txtFont.render("N" , 1, txtColor)
-      self.BG.blit(txt, (155, 0))
-      txt = txtFont.render("S" , 1, txtColor)
-      self.BG.blit(txt, (155, 222))
-      txt = txtFont.render("E" , 1, txtColor)
-      self.BG.blit(txt, (43, 112))
-      txt = txtFont.render("W" , 1, txtColor)
-      self.BG.blit(txt, (263, 112))
-
-      plotStars(self.BG, obs, sun)
-      plotPlanets(self.BG, obs, sun)
+    if issp.daytimepass:
+      visColor = Yellow # yellow
+    else:
+      visColor = White # white
 
 # plot circles for iss path, size shows magnitude
-      for aam in issp.path: # alt, az, mag
-        sz = int(1-aam[2] * 2.5 + 0.5) # vmag * 3 (sort of) (round makes a float!)
-        if sz<2: sz = 2 # minimum radius
-        if aam[2]<99: # visible
-          pColor = visColor
-        else:
-          pColor = (0,127,255)
-        pygame.draw.circle(self.BG, pColor, getxy(aam[0],aam[1]), sz, 1)
+    for aam in issp.path: # alt, az, mag
+      sz = int(1-aam[2] * 2.5 + 0.5) # vmag * 3 (sort of) (round makes a float!)
+      if sz<2: sz = 2 # minimum radius
+      if aam[2]<99: # visible
+        pColor = visColor
+      else:
+        pColor = (0,127,255)
+      pygame.draw.circle(self.BG, pColor, getxy(aam[0],aam[1]), sz, 1)
 
 
   def plot(self, issp, utcNow, obs, iss, sun, issmag):
@@ -143,10 +109,47 @@ class showSky():
       tds = timedelta(td).total_seconds()
       t2txt = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
     t2 = txtFont.render(t2txt, 1, txtColor)
-    r2 = t2.get_rect()
-    self.window.blit(t2, (320 - r2.width, 0))
+    t2r = t2.get_rect()
+    self.window.blit(t2, (self.width - t2r.width, 0))
+    line = t2r.height
 
-    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
+    tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
+    rminrng = tminrng.get_rect()
+    self.window.blit(tminrng, (self.width - rminrng.width, line))
+    line += rminrng.height
+
+    if (issp.maxmag>99):
+      maxmagtxt = '---'
+    else:
+      maxmagtxt = "{:5.1f}".format(issp.maxmag)
+    tmaxmag = txtFont.render(maxmagtxt, 1, txtColor)
+    rmaxmag = tmaxmag.get_rect()
+    self.window.blit(tmaxmag, (self.width - rmaxmag.width, line))
+    line += rmaxmag.height
+
+    tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
+    rmaxalt = tmaxalt.get_rect()
+    self.window.blit(tmaxalt, (self.width - rmaxalt.width, line))
+#    line += rmaxalt.height
+
+    line = self.height
+
+    trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
+    rrng = trng.get_rect()
+    line -= rrng.height
+    self.window.blit(trng, (self.width - rrng.width, line))
+
+    tazi = txtFont.render("{:3.0f}".format(issaz) , 1, txtColor)
+    razi = tazi.get_rect()
+    line -= razi.height
+    self.window.blit(tazi, (self.width - razi.width, line))
+
+    talt = txtFont.render("{:3.0f}".format(issalt) , 1, txtColor)
+    ralt = talt.get_rect()
+    line -= ralt.height
+    self.window.blit(talt, (self.width - ralt.width, line))
+
+#    txtFont = pygame.font.SysFont("Arial", 18, bold=True) # ???
     if (issmag<99):
       magtxt = "{:5.1f}".format(issmag)
       issColor = Green
@@ -155,35 +158,8 @@ class showSky():
       issColor = Blue
     tmag = txtFont.render(magtxt, 1, txtColor)
     rmag = tmag.get_rect()
-    self.window.blit(tmag, (320 - rmag.width, 160))
-
-    if (issp.maxmag>99):
-      maxmagtxt = '---'
-    else:
-      maxmagtxt = "{:5.1f}".format(issp.maxmag)
-    tmaxmag = txtFont.render(maxmagtxt, 1, txtColor)
-    rmaxmag = tmaxmag.get_rect()
-    self.window.blit(tmaxmag, (320 - rmaxmag.width, 40))
-
-    trng = txtFont.render("{:5.0f} km".format(iss.range/1000) , 1, txtColor)
-    rrng = trng.get_rect()
-    self.window.blit(trng, (320 - rrng.width, 220))
-
-    tminrng = txtFont.render("{:5.0f} km".format(issp.minrange) , 1, txtColor)
-    rminrng = tminrng.get_rect()
-    self.window.blit(tminrng, (320 - rminrng.width, 20))
-
-    talt = txtFont.render("{:3.0f}".format(issalt) , 1, txtColor)
-    ralt = talt.get_rect()
-    self.window.blit(talt, (320 - ralt.width, 180))
-
-    tazi = txtFont.render("{:3.0f}".format(issaz) , 1, txtColor)
-    razi = tazi.get_rect()
-    self.window.blit(tazi, (320 - razi.width, 200))
-
-    tmaxalt = txtFont.render("{:0.0f}".format(math.degrees(issp.maxalt)) , 1, txtColor)
-    rmaxalt = tmaxalt.get_rect()
-    self.window.blit(tmaxalt, (320 - rmaxalt.width, 60))
+    line -= rmag.height
+    self.window.blit(tmag, (self.width - rmag.width, line))
 
     if (issalt>0):
       (x,y) = getxy(iss.alt,iss.az) # show where ISS is

@@ -678,10 +678,11 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
+    drawMenu(Menu)
     return Menu
 
-def pageMenu():
-    global menuScrn, menuRect, Menu
+def drawMenu(Menu):
+    global menuScrn, menuRect
 
     menuScrn = pygame.Surface((320,240)) # use the entire screen for the menu
     menuRect = menuScrn.get_rect()
@@ -692,6 +693,9 @@ def pageMenu():
         if item.escapekey:
             item.rect.x, item.rect.y, item.rect.width, item.rect.height = 288, 4, 28, 28 # make the X easier to hit
             pygame.draw.rect(menuScrn, Red, item.rect, 1)
+
+def pageMenu():
+    global menuScrn, menuRect, Menu
 
     screen.blit(menuScrn, menuRect)
     pygame.display.update()
@@ -731,8 +735,7 @@ def checkEvent():
           if page == pageMenu: # what numerical value ???
             for item in Menu:
               if item.rect.collidepoint(x,y):
-                pygame.draw.rect(menuScrn, Cyan, item.rect, 1)
-            screen.blit(menuScrn, menuRect)
+                pygame.draw.rect(screen, Cyan, item.rect, 1) # draw box to hilight item
             pygame.display.update()
 
         if (ev.type == pygame.MOUSEBUTTONUP):
@@ -743,6 +746,7 @@ def checkEvent():
           if page != pageMenu: # other menu pages???
               pageLast = page # for escape key
               page = pageMenu
+              screen.blit(menuScrn, menuRect)
               ret = True
           else:
 #              print "check xy {},{}".format(x,y)

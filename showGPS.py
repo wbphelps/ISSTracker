@@ -4,14 +4,7 @@ from datetime import datetime, timedelta
 import pygame
 from pygame.locals import *
 import math
-from plotSky import plotStars, plotPlanets
-
-#import os
-# Init framebuffer/touchscreen environment variables
-#os.putenv('SDL_VIDEODRIVER', 'fbcon')
-#os.putenv('SDL_FBDEV'      , '/dev/fb1')
-#os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-#os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
+from plotSky import plotSky
 
 Red = pygame.Color('red')
 Orange = pygame.Color('orange')
@@ -40,7 +33,10 @@ class showGPS():
     self.screen = screen
     self.pos = (x,y)
 
-    self.window = screen.copy() 
+    self.window = screen.copy()
+    rect = self.window.get_rect()
+    self.height = rect.height
+    self.width = rect.width
 
     self.BG = screen.copy() # make another copy for the background
     self.BGupdate = datetime.now() - timedelta(seconds=61) # force BG update
@@ -51,38 +47,9 @@ class showGPS():
 
     self.BGupdate = datetime.now()
 
-    self.BG.fill((0,0,0)) # clear window
-    image = pygame.Surface.convert(pygame.image.load("ISSTracker7Dim.png"))
-#    image  = pygame.transform.scale(image, (320,240))
-    self.BG.blit(image, (0,0))
-
-    self.bgColor = (0,0,0)
-
-    sunaltd = math.degrees(sun.alt)
-#    print "sun alt {}".format(sunaltd)
-    if (sunaltd > 0):
-        self.bgColor = (32,32,92) # daytime
-    elif (sunaltd > -15): # twilight ???
-        self.bgColor = (16,16,64)
-    else:
-        self.bgColor = (0,0,0)
-
-    pygame.draw.circle(self.BG, self.bgColor, (160,120), 120, 0)
-    pygame.draw.circle(self.BG, (0,255,255), (160,120), 120, 1)
-
-    txtColor = Cyan
-    txtFont = pygame.font.SysFont("Arial", 14, bold=True)
-    txt = txtFont.render("N" , 1, txtColor)
-    self.BG.blit(txt, (155, 0))
-    txt = txtFont.render("S" , 1, txtColor)
-    self.BG.blit(txt, (155, 222))
-    txt = txtFont.render("E" , 1, txtColor)
-    self.BG.blit(txt, (43, 112))
-    txt = txtFont.render("W" , 1, txtColor)
-    self.BG.blit(txt, (263, 112))
-
-    plotStars(self.BG, obs, sun)
-    plotPlanets(self.BG, obs, sun)
+    self.Sky = plotSky(self.BG, obs, 40, 0, 120) # draw the sky background & compass points
+    self.Sky.plotStars(obs) # add stars
+    self.Sky.plotPlanets(obs) # add planets
 
 
   def plot(self, gps, obs, sun):
@@ -91,54 +58,22 @@ class showGPS():
       self.drawBG(obs, sun) # update background image once a minute
 
     self.window.blit(self.BG,(0,0)) # paint background image
+    line = 0
 
     txtColor = Yellow
-    txtFont = pygame.font.SysFont("Arial", 20, bold=True)
-
-    t1 = txtFont.render(gps.datetime.strftime('%H:%M:%S'), 1, txtColor) # time
-    self.window.blit(t1, (0,0)) # time
-
-    t2 = txtFont.render(gps.datetime.strftime('%Y'), 1, txtColor) # date
-    rect = t2.get_rect()
-    self.window.blit(t2, (320 - rect.width, 0))
-    t3 = txtFont.render(gps.datetime.strftime('%m/%d'), 1, txtColor) # date
-    rect = t3.get_rect()
-    self.window.blit(t3, (320 - rect.width, 24))
-
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
 
-#    tgeod = txtFont.render('{:5.1f}'.format(gps.geodiff), 1, txtColor)
-#    rect = tgeod.get_rect()
-#    self.window.blit(tgeod, (320 - rect.width, 140))
+    t1 = txtFont.render(gps.datetime.strftime('%H:%M:%S'), 1, txtColor) # time
+    t1r = t1.get_rect()
+    self.window.blit(t1, (0,0)) # time
+    line += t1r.height
 
-#    tdil = txtFont.render('{:5.1f}m'.format(gps.hDilution), 1, txtColor)
-#    rect = tdil.get_rect()
-#    self.window.blit(tdil, (320 - rect.width, 160))
+    t2 = txtFont.render(gps.datetime.strftime('%Y/%m/%d'), 1, txtColor) # date
+    t2r = t2.get_rect()
+    self.window.blit(t2, (self.width - t2r.width, 0))
 
-    alt = gps.altitude #+ gps.geodiff
-    if alt<100:
-      talt = '{:6.1f}m'.format(alt)
-    else:
-      talt = '{:6.0f}m'.format(alt)
-    talt = txtFont.render(talt, 1, txtColor)
-    rect = talt.get_rect()
-    self.window.blit(talt, (320 - rect.width, 180))
-
-    if gps.quality == 2:
-      fmt = '{:7.5f}' # differential GPS - 1 meter accuracy!!!
-    else:
-      fmt = '{:7.5f}' # normal signal
-
-    tlat = txtFont.render(fmt.format(math.degrees(gps.avg_latitude)), 1, txtColor)
-    rect = tlat.get_rect()
-    self.window.blit(tlat, (320 - rect.width, 200))
-
-    tlon = txtFont.render(fmt.format(math.degrees(gps.avg_longitude)), 1, txtColor)
-    rect = tlon.get_rect()
-    self.window.blit(tlon, (320 - rect.width, 220))
-
+    # draw a circle for each satellite
     satFont = pygame.font.SysFont("Arial", 10, bold=True)
-
 # TODO: detect collision and move label ?
     ns = 0
     nsa = 0
@@ -153,19 +88,70 @@ class showGPS():
         else:       color = Green
         if sz<9: sz = 9 # minimum circle size
         pygame.draw.circle(self.window, color, xy, sz, 1)
-        t1 = satFont.render(format(sat.svn), 1, White, self.bgColor)
-        t1pos = t1.get_rect()
-        t1pos.centerx = xy[0]
-        t1pos.centery = xy[1]
-        self.window.blit(t1,t1pos)
+#        tsat = satFont.render(format(sat.svn), 1, White)
+        tsat = satFont.render(format(sat.svn), 1, White, self.Sky.bgColor)
+        tpos = tsat.get_rect()
+        tpos.centerx = xy[0]
+        tpos.centery = xy[1]
+        self.window.blit(tsat,tpos)
+
+#    t3 = txtFont.render(gps.datetime.strftime('%m/%d'), 1, txtColor) # date
+#    rect = t3.get_rect()
+#    self.window.blit(t3, (self.width - rect.width, 24))
+
+#    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
+
+#    tgeod = txtFont.render('{:5.1f}'.format(gps.geodiff), 1, txtColor)
+#    rect = tgeod.get_rect()
+#    self.window.blit(tgeod, (self.width - rect.width, 140))
+
+#    tdil = txtFont.render('{:5.1f}m'.format(gps.hDilution), 1, txtColor)
+#    rect = tdil.get_rect()
+#    self.window.blit(tdil, (self.width - rect.width, 160))
+
 
     s1 = txtFont.render('{}/{}'.format(gps.status,gps.quality), 1, txtColor)
-    self.window.blit(s1,(1,24))
+    s1r = s1.get_rect()
+    self.window.blit(s1,(1,line))
+    line += s1r.height
+
     s2 = txtFont.render('{:0>2}/{:0>2}'.format(nsa, ns), 1, txtColor)
-    self.window.blit(s2,(1,44))
+    s2r = s2.get_rect()
+    self.window.blit(s2,(1,line))
+    line += s2r.height
 
     tdil = txtFont.render('{:0.1f}m'.format(gps.hDilution), 1, txtColor)
-    self.window.blit(tdil, (1, 64))
+    tdilr = tdil.get_rect()
+    self.window.blit(tdil, (1, line))
+#    line += tdilr.height
+
+    line = self.height
+
+    if gps.quality == 2:
+      fmt = '{:7.5f}' # differential GPS - 1 meter accuracy!!!
+    else:
+      fmt = '{:7.5f}' # normal signal
+
+    tlon = txtFont.render(fmt.format(math.degrees(gps.avg_longitude)), 1, txtColor)
+    tlonr = tlon.get_rect()
+    line -= tlonr.height
+    self.window.blit(tlon, (self.width - tlonr.width, line))
+
+    tlat = txtFont.render(fmt.format(math.degrees(gps.avg_latitude)), 1, txtColor)
+    tlatr = tlat.get_rect()
+    line -= tlatr.height
+    self.window.blit(tlat, (self.width - tlatr.width, line))
+
+    alt = gps.altitude #+ gps.geodiff
+    if alt<100:
+      talt = '{:6.1f}m'.format(alt)
+    else:
+      talt = '{:6.0f}m'.format(alt)
+    talt = txtFont.render(talt, 1, txtColor)
+    taltr = talt.get_rect()
+    line -= taltr.height
+    self.window.blit(talt, (self.width - taltr.width, line))
 
     self.screen.blit(self.window,self.pos)
-    pygame.display.update() #flip()
+    pygame.display.flip() #flip()
+
