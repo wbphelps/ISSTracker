@@ -72,6 +72,10 @@ class showGPS():
     t2r = t2.get_rect()
     self.window.blit(t2, (self.width - t2r.width, 0))
 
+    e1 = txtFont.render('({})'.format(gps.error_count), 1, Red)
+    e1r = e1.get_rect()
+    self.window.blit(e1, (self.width - e1r.width, t2r.height))
+
     # draw a circle for each satellite
     satFont = pygame.font.SysFont("Arial", 10, bold=True)
 # TODO: detect collision and move label ?
@@ -95,20 +99,7 @@ class showGPS():
         tpos.centery = xy[1]
         self.window.blit(tsat,tpos)
 
-#    t3 = txtFont.render(gps.datetime.strftime('%m/%d'), 1, txtColor) # date
-#    rect = t3.get_rect()
-#    self.window.blit(t3, (self.width - rect.width, 24))
-
-#    txtFont = pygame.font.SysFont("Arial", 18, bold=True)
-
-#    tgeod = txtFont.render('{:5.1f}'.format(gps.geodiff), 1, txtColor)
-#    rect = tgeod.get_rect()
-#    self.window.blit(tgeod, (self.width - rect.width, 140))
-
-#    tdil = txtFont.render('{:5.1f}m'.format(gps.hDilution), 1, txtColor)
-#    rect = tdil.get_rect()
-#    self.window.blit(tdil, (self.width - rect.width, 160))
-
+    txtFont = pygame.font.SysFont("Arial", 17, bold=True)
 
     s1 = txtFont.render('{}/{}'.format(gps.status,gps.quality), 1, txtColor)
     s1r = s1.get_rect()
@@ -127,10 +118,10 @@ class showGPS():
 
     line = self.height
 
-    if gps.quality == 2:
+    if gps.quality == 2 or gps.hDilution < 2:
       fmt = '{:7.5f}' # differential GPS - 1 meter accuracy!!!
     else:
-      fmt = '{:7.5f}' # normal signal
+      fmt = '{:6.4f}' # normal signal
 
     tlon = txtFont.render(fmt.format(math.degrees(gps.avg_longitude)), 1, txtColor)
     tlonr = tlon.get_rect()

@@ -63,7 +63,7 @@ def c2Float(str):
   try:
      f = float(str)
   except:
-     print 'c2float error {}'.format(str)
+#     print 'c2float error {}'.format(str)
      f = 0
   return f
 
@@ -71,7 +71,7 @@ def c2Int(str):
   try:
      i = int(str)
   except:
-     print 'c2int error {}'.format(str)
+#     print 'c2int error {}'.format(str)
      i = 0
   return i
 
@@ -113,6 +113,7 @@ class pyGPS():
     self.l10_lon = [0,0,0,0,0,0,0,0,0,0]
     self.avg_latitude = 0 # position averaging (simple)
     self.avg_longitude = 0 # position averaging (simple)
+    self.error_count = 0
 
   def __exit__(self, type, value, traceback):
     self.port.close() # close serial port
@@ -128,12 +129,15 @@ class pyGPS():
       chk1 = chk1 ^ ord(ch)
       i += 1
     try:
-      chk2 = int(rcv[i+1:i+3],16)
+      chk2 = int(rcv[i+1:i+3],16) # checksum should be next 2 chars after the '*'
     except:
-      chk2 = 0
+#      print 'Exc: {}'.format(self.rcv[:-1])
+      self.error_count += 1
+      return False
 #    print("chk1:" + hex(chk1) + " chk2:" + hex(chk2))
     if (chk1 != chk2):
-      print 'Err: {}'.format(self.rcv[:-1])
+#      print 'Err: {}'.format(self.rcv[:-1])
+      self.error_count += 1
       return False
     else:
       return True
@@ -154,8 +158,8 @@ class pyGPS():
       self.running = True
     sats = []
     while self._run:
-
-      self.rcv = self.port.readline()
+      with self.lock:
+        self.rcv = self.port.readline()
 
       try:
 #  $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,q,ns,h.d,a.a,M,x.x,M,x.x,xxxx*hh
@@ -168,9 +172,11 @@ class pyGPS():
             lat = c2Float(self.ntok())
             lat = lat//100 + (lat%100)/60.0
             latD = self.ntok()
+            if latD == 'S': lat = -lat
             lon = c2Float(self.ntok())
             lon = lon//100 + (lon%100)/60.0
             lonD = self.ntok()
+            if lonD == 'W': lon = -lon
             quality = c2Int(self.ntok())
             nsats = c2Int(self.ntok())
             hDilution = c2Float(self.ntok())
@@ -266,6 +272,12 @@ class pyGPS():
               self.datetime = dt
               if self.status == 'A':
                 self.statusOK = True
+                self.l10_lat.append(lat)
+                self.l10_lat = self.l10_lat[1:]
+                self.l10_lon.append(lon)
+                self.l10_lon = self.l10_lon[1:]
+                self.avg_latitude = math.radians(sum(self.l10_lat)/10.0)
+                self.avg_longitude = math.radians(sum(self.l10_lon)/10.0)
 
       except:
         print self.rcv
@@ -286,5 +298,4 @@ class pyGPS():
   def stop(self):
     with self.lock:
       self._run = False # stop loop
-
 

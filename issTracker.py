@@ -101,11 +101,15 @@ def backlight(set):
         os.system("echo '0' > /sys/class/gpio/gpio252/value")
 
 def Shutdown():
-    command = "/usr/bin/sudo /sbin/shutdown -f now"
-    import subprocess
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-    output = process.communicate()[0]
-    print output
+#    command = "/usr/bin/sudo /sbin/shutdown -h now"
+#    import subprocess
+#    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+#    output = process.communicate()[0]
+#    print output
+    StopAll()
+    sleep(1)
+    os.system('/usr/bin/sudo /sbin/shutdown -h now')
+    sys.exit(0)
 
 # ---------------------------------------------------------------------
 
@@ -493,7 +497,7 @@ def pageLocation():
     if checkEvent(): return
     vkey = VirtualKeyboard(screen) # create a virtual keyboard
     if gps_on and gps.statusOK:
-        txt = '{:6.4f}, {:6.4f}'.format(math.degrees(gps.lat),math.degrees(gps.lon))
+        txt = '{:6.4f}, {:6.4f}'.format(math.degrees(gps.latitude),math.degrees(gps.longitude))
     else:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
     txt2 = vkey.run(txt)
@@ -633,7 +637,7 @@ class menuItem():
         self.subMenu = subMenu
 
 def setMenu():
-#    global menuScrn, Menu
+    global menuScrn, Menu
     Menu = []
 
     txtFont = pygame.font.SysFont('Courier', 24, bold=True)
@@ -678,7 +682,7 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
 
-    drawMenu(Menu)
+    Menu = drawMenu(Menu)
     return Menu
 
 def drawMenu(Menu):
@@ -694,8 +698,10 @@ def drawMenu(Menu):
             item.rect.x, item.rect.y, item.rect.width, item.rect.height = 288, 4, 28, 28 # make the X easier to hit
             pygame.draw.rect(menuScrn, Red, item.rect, 1)
 
+    return Menu
+
 def pageMenu():
-    global menuScrn, menuRect
+    global menuScrn, menuRect, Menu
 
     screen.blit(menuScrn, menuRect)
     pygame.display.update()

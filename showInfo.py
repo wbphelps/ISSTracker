@@ -28,8 +28,8 @@ col1 = 5
 col2 = 110
 
 lsize = 28
-line0 = 15
-line1 = 25+lsize
+line0 = 10
+line1 = 15+lsize
 line2 = line1+lsize
 line3 = line2+lsize
 line4 = line3+lsize
@@ -54,11 +54,12 @@ class showInfo():
 
     txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 30, bold=True)
-#    txt = 'ISS Tracker'
     txt = 'Next ISS Pass'
 #    if page == pageDemo: txt = txt + ' (Demo)'
     txt = txtFont.render(txt , 1, txtColor)
-    self.bg.blit(txt, (5, line0))
+    self.bg.blit(txt, (col1, line0))
+#    txtr = txt.get_rect()
+#    self.bg.blit(txt, ((320-txtr.width)/2, line0)) # center on width
 
     txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
@@ -83,11 +84,6 @@ class showInfo():
     txtColor = Red
     txtFont = pygame.font.SysFont("Arial", 24, bold=True)
     self.screen.blit(self.bg, self.bgRect) # write background image
-
-    tn = utc_to_local(utcNow).strftime('%H:%M:%S')
-    tn = txtFont.render(tn, 1, Orange) # show current time
-    rect = tn.get_rect()
-    self.screen.blit(tn, (320 - rect.width - 2, 240 - rect.height - 2))
 
     t1 = ephem.localtime(issp.risetime).strftime('%b %d %H:%M:%S')
     txt = txtFont.render(t1 , 1, txtColor)
@@ -133,6 +129,11 @@ class showInfo():
     t2 = "%02d:%02d:%02d" % (tds//3600, tds//60%60, tds%60)
     txt = txtFont.render(t2 , 1, tnc, bkg)
     self.screen.blit(txt, (col2, line6))
+
+    tn = utc_to_local(utcNow).strftime('%m/%d/%y %H:%M:%S')
+    tn = txtFont.render(tn, 1, Orange) # show current time
+    rect = tn.get_rect()
+    self.screen.blit(tn, (320 - rect.width - 2, 240 - rect.height - 2))
 
 #    pygame.display.flip()
     pygame.display.update()
