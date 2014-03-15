@@ -198,6 +198,7 @@ class pyGPS():
                 self.l10_lon = self.l10_lon[1:]
                 self.avg_latitude = math.radians(sum(self.l10_lat)/10.0)
                 self.avg_longitude = math.radians(sum(self.l10_lon)/10.0)
+
 #              if gtime == '':
 #                print("quality: {}, lat: {}{}, lon: {}{}, time: {}".format(quality,  latD, lat, lonD, lon, 0))
 #              else:
@@ -263,12 +264,12 @@ class pyGPS():
             try:
               dt = datetime.strptime(gdate+gtime, "%d%m%y%H%M%S") + timedelta(seconds=tz_offset())
             except:
-              dt = datetime.now() # fake it?
+              dt = datetime.now() # fake it ???
 #            print("status: {}, lat: {}, lon: {}, time: {}".format(self.status, lat, lon, dt))
             with self.lock:
               self.statusOK = False
-              self.latitude = math.radians(lat)
-              self.longitude = math.radians(lon)
+              self.lat = math.radians(lat)
+              self.lon = math.radians(lon)
               self.datetime = dt
               if self.status == 'A':
                 self.statusOK = True
