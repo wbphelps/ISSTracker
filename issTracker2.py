@@ -35,6 +35,7 @@ from issTLE import issTLE
 from issBlinkStick import BlinkStick
 from checkNet import checkNet
 from pyGPS import pyGPS, satInfo
+from pyColors import pyColors
 
 # -------------------------------------------------------------
 
@@ -54,15 +55,6 @@ tNow = datetime.utcnow()
 obs.date = tNow
 sun = ephem.Sun(obs)
 
-Red = pygame.Color('red')
-Orange = pygame.Color('orange')
-Green = pygame.Color('green')
-Blue = pygame.Color('blue')
-Yellow = pygame.Color('yellow')
-Cyan = pygame.Color('cyan')
-Magenta = pygame.Color('magenta')
-White = pygame.Color('white')
-Black = (0,0,0)
 R90 = math.radians(90) # 90 degrees in radians
 
 # ---------------------------------------------------------------
@@ -75,7 +67,7 @@ def StopAll():
     global blinkstick_on, BLST, gps_on
     sleep(1)
     if gps_on:
-      gps.stop()
+      GPS.stop()
     sleep(1)
     if blinkstick_on:
       BLST.stop()
@@ -101,11 +93,7 @@ def backlight(set):
         os.system("echo '0' > /sys/class/gpio/gpio252/value")
 
 def Shutdown():
-#    command = "/usr/bin/sudo /sbin/shutdown -h now"
-#    import subprocess
-#    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-#    output = process.communicate()[0]
-#    print output
+    print 'Shutdown'
     StopAll()
     sleep(1)
     os.system('/usr/bin/sudo /sbin/shutdown -h now')
@@ -135,32 +123,6 @@ wiringpi.pullUpDnControl(switch_3, 2)
 wiringpi.pinMode(switch_4,0) # input
 wiringpi.pullUpDnControl(switch_4, 2)
 
-# Init pygame and screen
-pygame.init() 
-
-pygame.mouse.set_visible(False)
-size = pygame.display.list_modes(16)[0] # get screen size
-#print "size: {}".format(size)
-
-#screen = pygame.display.set_mode(size, FULLSCREEN, 16)
-screen = pygame.display.set_mode(size)
-(width, height) = size
-
-backlight(True)
-
-bg = pygame.image.load("ISSTracker7.png")
-bgRect = bg.get_rect()
-txtColor = Yellow
-txtFont = pygame.font.SysFont("Arial", 30, bold=True)
-txt = txtFont.render('ISS Tracker' , 1, txtColor)
-bg.blit(txt, (15, 28))
-txt = txtFont.render('by' , 1, txtColor)
-bg.blit(txt, (15, 64))
-txt = txtFont.render('William Phelps' , 1, txtColor)
-bg.blit(txt, (15, 100))
-screen.blit(bg, bgRect)
-pygame.display.update()
-sleep(3)
 
 def getxy(alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
@@ -195,7 +157,7 @@ def pageAuto():
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issdata.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
-        sInfo = showInfo(screen) # set up Info display
+        sInfo = showInfo(Screen, Colors) # set up Info display
     # wait for ISS to rise
         utcNow = datetime.utcnow() 
         obs.date = utcNow 
@@ -214,7 +176,7 @@ def pageAuto():
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
     iss.compute(obs) # recompute ISS
     sun = ephem.Sun(obs)
-    sSky = showSky(screen, issdata, obs, iss, sun) # set up the ISS Pass screen
+    sSky = showSky(Screen, Colors, issdata, obs, iss, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageAuto and ephem.localtime(issdata.settime) > ephem.localtime(obs.date) :
  #       utcNow = datetime.utcnow()
@@ -281,7 +243,7 @@ def pageDemo():
 
 # if ISS is not up, display the Info screen and wait for it to rise
     if ephem.localtime(issdata.risetime) > ephem.localtime(obs.date) : # if ISS is not up yet
-        sInfo = showInfo(screen) # set up Info display
+        sInfo = showInfo(Screen, Colors) # set up Info display
     # wait for ISS to rise
         while page == pageDemo and ephem.localtime(issdata.risetime) > ephem.localtime(obs.date) :
             obs.date = utcNow
@@ -293,7 +255,7 @@ def pageDemo():
 
 # ISS is up now - Display the Pass screen with the track, then show it's position in real time
     issDemo.compute(obs) # recompute ISS
-    sSky = showSky(screen, issdata, obs, issDemo, sun) # set up the ISS Pass screen
+    sSky = showSky(Screen, Colors, issdata, obs, issDemo, sun) # set up the ISS Pass screen
     # show the pass
     while page == pageDemo and ephem.localtime(issdata.settime) > ephem.localtime(obs.date) :
         obs.date = utcNow # update observer time
@@ -331,7 +293,7 @@ def pageCrew():
 #    sun = ephem.Sun(obs)
 #    iss.compute(obs)
 
-    showCrew(screen)
+    showCrew(Screen, Colors)
 
     while (page == pageCrew): # wait for a menu selection
       if checkEvent():
@@ -346,7 +308,7 @@ def showPasses(iss, obs, sun):
     scrRect = scr.get_rect()
 
     txtFont = pygame.font.SysFont('Courier', 16, bold=True)
-    txtColor = White
+    txtColor = Colors.White
 
     txt = txtFont.render('PASS START      MAG  ALT  RANGE', 1, txtColor)
     scr.blit(txt, (0,0))
@@ -358,12 +320,12 @@ def showPasses(iss, obs, sun):
 # find next ISS pass and compute position of ISS
       issdata = ISSData( iss, obs, 15, 0 ) # find next ISS pass (even low ones)
       if issdata.daytimepass:
-        txtColor = (192,192,0) # dim yellow
+        txtColor = Colors.DarkYellow # dim yellow
       else:
         if issdata.visible:
-          txtColor = White # bright white
+          txtColor = Colors.White # bright white
         else:
-          txtColor = (0,192,192) # dim cyan
+          txtColor = Colors.DarkCyan # dim cyan
 
       t1 = ephem.localtime(issdata.risetime).strftime('%b %d %H:%M:%S')
       txt = txtFont.render(t1 , 1, txtColor)
@@ -388,7 +350,7 @@ def showPasses(iss, obs, sun):
       txtPos = txt.get_rect(left=txtPos.left+txtPos.width+4,top=line)
       scr.blit(txt, txtPos)
 
-      screen.blit(scr, scrRect) # write background image
+      Screen.blit(scr, scrRect) # write background image
       pygame.display.update()
 
       obs.date = ephem.Date(issdata.settime + ephem.minute * 30) # start search a little after this pass
@@ -430,28 +392,28 @@ def showTLEs(iss_tle):
 
     ll = 34
     txt = iss_tle.tle[0]
-    txtr = txtFont.render(txt[:ll], 1, White)
+    txtr = txtFont.render(txt[:ll], 1, Colors.White)
     scr.blit(txtr, (0,10))
-#    txtr = txtFont.render(txt[ll:], 1, White)
+#    txtr = txtFont.render(txt[ll:], 1, Colors.White)
 #    scr.blit(txtr, (0,30))
 
     txt = iss_tle.tle[1]
-    txtr = txtFont.render(txt[:ll], 1, White)
+    txtr = txtFont.render(txt[:ll], 1, Colors.White)
     scr.blit(txtr, (0,35))
-    txtr = txtFont.render(txt[ll:], 1, White)
+    txtr = txtFont.render(txt[ll:], 1, Colors.White)
     scr.blit(txtr, (0,55))
 
     txt = iss_tle.tle[2]
-    txtr = txtFont.render(txt[:ll], 1, White)
+    txtr = txtFont.render(txt[:ll], 1, Colors.White)
     scr.blit(txtr, (0,80))
-    txtr = txtFont.render(txt[ll:], 1, White)
+    txtr = txtFont.render(txt[ll:], 1, Colors.White)
     scr.blit(txtr, (0,100))
 
     txt = iss_tle.date.strftime('%Y-%m-%d %H:%M:%S')
-    txtr = txtFont.render(txt, 1, White)
+    txtr = txtFont.render(txt, 1, Colors.White)
     scr.blit(txtr, (0,125))
 
-    screen.blit(scr, scrRect) # display the new surface
+    Screen.blit(scr, scrRect) # display the new surface
     pygame.display.update()
 
 def pageTLEs():
@@ -470,9 +432,9 @@ def pageDateTime():
   print 'DateTime'
   while page == pageDateTime:
     if checkEvent(): return
-    vkey = VirtualKeyboard(screen) # create a virtual keyboard
-    if gps_on and gps.statusOK:
-      tn = gps.datetime + timedelta(seconds=5) # set ahead a bit
+    vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
+    if gps_on and GPS.statusOK:
+      tn = GPS.datetime + timedelta(seconds=5) # set ahead a bit
     else:
       tn = datetime.now() + timedelta(seconds=5) # set ahead a bit
     txt = vkey.run(tn.strftime('%Y-%m-%d %H:%M:%S'))
@@ -495,9 +457,9 @@ def pageLocation():
   print 'Location'
   while page == pageLocation:
     if checkEvent(): return
-    vkey = VirtualKeyboard(screen) # create a virtual keyboard
-    if gps_on and gps.statusOK:
-        txt = '{:6.4f}, {:6.4f}'.format(math.degrees(gps.latitude),math.degrees(gps.longitude))
+    vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
+    if gps_on and GPS.statusOK:
+        txt = '{:6.4f}, {:6.4f}'.format(math.degrees(GPS.latitude),math.degrees(GPS.longitude))
     else:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
     txt2 = vkey.run(txt)
@@ -538,7 +500,7 @@ def pageSky():
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # reset date/time after ISSData runs
     iss.compute(obs) # recompute ISS
-    sSky = showSky(screen, issdata, obs, iss, sun) # set up the Sky screen
+    sSky = showSky(Screen, Colors, issdata, obs, iss, sun) # set up the Sky screen
     # show the sky
     while page == pageSky :
 #        utcNow = datetime.utcnow()
@@ -565,7 +527,7 @@ def pageSky():
 
 def pageGPS():
   from showGPS import showGPS
-  global page, gps
+  global page, GPS
   print 'GPS'
 
   utcNow = datetime.utcnow()
@@ -573,14 +535,14 @@ def pageGPS():
   sun = ephem.Sun(obs)
 #  iss.compute(obs)
 
-  sGPS = showGPS(screen, gps, obs, sun) # set up the GPS display screen
+  sGPS = showGPS(Screen, Colors, GPS, obs, sun) # set up the GPS display screen
   # show the sky with GPS positions & signal
   while page == pageGPS:
 #    utcNow = datetime.utcnow()
     obs.date = utcNow # update observer time
 #    iss.compute(obs) # compute new position
     sun = ephem.Sun(obs) # recompute the sun
-    sGPS.plot(gps, obs, sun)
+    sGPS.plot(GPS, obs, sun)
 #    while (datetime.utcnow()-utcNow).total_seconds() < stime:
     sec = utcNow.second
     while sec == utcNow.second: # wait for clock to tic
@@ -641,7 +603,7 @@ def setMenu():
     Menu = []
 
     txtFont = pygame.font.SysFont('Courier', 24, bold=True)
-    item = menuItem('X',(295,5),txtFont,Red,None,True) # escape key
+    item = menuItem('X',(295,5),txtFont,Colors.Red,None,True) # escape key
 #    item.escapekey = True # tag special key
     Menu.append(item)
 
@@ -650,37 +612,37 @@ def setMenu():
     lx = 10 # left side
     ly = 10 # line position
     lh = 28 # line height
-    Menu.append(menuItem('Auto',   (lx,ly),txtFont,Yellow,pageAuto))
+    Menu.append(menuItem('Auto',   (lx,ly),txtFont,Colors.Yellow,pageAuto))
     ly += lh
-    Menu.append(menuItem('Demo',   (lx,ly),txtFont,Yellow,pageDemo))
+    Menu.append(menuItem('Demo',   (lx,ly),txtFont,Colors.Yellow,pageDemo))
     ly += lh
-    Menu.append(menuItem('Sky',    (lx,ly),txtFont,Yellow,pageSky))
+    Menu.append(menuItem('Sky',    (lx,ly),txtFont,Colors.Yellow,pageSky))
     ly += lh
-    Menu.append(menuItem('Crew', (lx,ly),txtFont,Yellow,pageCrew))
+    Menu.append(menuItem('Crew', (lx,ly),txtFont,Colors.Yellow,pageCrew))
     ly += lh
-    Menu.append(menuItem('Passes', (lx,ly),txtFont,Yellow,pagePasses))
+    Menu.append(menuItem('Passes', (lx,ly),txtFont,Colors.Yellow,pagePasses))
     ly += lh
-    Menu.append(menuItem('GPS',    (lx,ly),txtFont,Yellow,pageGPS)) # temp
+    Menu.append(menuItem('GPS',    (lx,ly),txtFont,Colors.Yellow,pageGPS)) # temp
     ly += lh
     ly += lh
-    Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Yellow,pageWifi,False,True))
+    Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Colors.Yellow,pageWifi,False,True))
 
     lx = 160 # right side
     ly = 10 # line position
 #    lh = 28 # line height
-    Menu.append(menuItem('DateTime', (lx,ly),txtFont,Yellow,pageDateTime,False,True))
+    Menu.append(menuItem('DateTime', (lx,ly),txtFont,Colors.Yellow,pageDateTime,False,True))
     ly += lh
-    Menu.append(menuItem('Location', (lx,ly),txtFont,Yellow,pageLocation,False,True))
+    Menu.append(menuItem('Location', (lx,ly),txtFont,Colors.Yellow,pageLocation,False,True))
     ly += lh
-    Menu.append(menuItem('TLEs',     (lx,ly),txtFont,Yellow,pageTLEs,False,True))
+    Menu.append(menuItem('TLEs',     (lx,ly),txtFont,Colors.Yellow,pageTLEs,False,True))
     ly += lh
     ly += lh
-    Menu.append(menuItem('Sleep',    (lx,ly),txtFont,(0,127,255),pageSleep,False,True))
+    Menu.append(menuItem('Sleep',    (lx,ly),txtFont,Colors.LightBlue,pageSleep,False,True))
     ly += lh
     Menu.append(menuItem('Exit',     (lx,ly),txtFont,Orange,pageExit))
     ly += lh
     ly += lh
-    Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Red,pageShutdown))
+    Menu.append(menuItem('Shutdown', (lx,ly),txtFont,Colors.Red,pageShutdown))
 
     Menu = drawMenu(Menu)
     return Menu
@@ -696,14 +658,14 @@ def drawMenu(Menu):
         item.rect = menuScrn.blit(txt, item.position)
         if item.escapekey:
             item.rect.x, item.rect.y, item.rect.width, item.rect.height = 288, 4, 28, 28 # make the X easier to hit
-            pygame.draw.rect(menuScrn, Red, item.rect, 1)
+            pygame.draw.rect(menuScrn, Colors.Red, item.rect, 1)
 
     return Menu
 
 def pageMenu():
     global menuScrn, menuRect, Menu
 
-    screen.blit(menuScrn, menuRect)
+    Screen.blit(menuScrn, menuRect)
     pygame.display.update()
 
     while page == pageMenu:
@@ -741,7 +703,7 @@ def checkEvent():
           if page == pageMenu: # what numerical value ???
             for item in Menu:
               if item.rect.collidepoint(x,y):
-                pygame.draw.rect(screen, Cyan, item.rect, 1) # draw box to hilight item
+                pygame.draw.rect(Screen, Colors.Cyan, item.rect, 1) # draw box to hilight item
             pygame.display.update()
 
         if (ev.type == pygame.MOUSEBUTTONUP):
@@ -752,7 +714,7 @@ def checkEvent():
           if page != pageMenu: # other menu pages???
               pageLast = page # for escape key
               page = pageMenu
-              screen.blit(menuScrn, menuRect)
+              Screen.blit(menuScrn, menuRect)
               ret = True
           else:
 #              print "check xy {},{}".format(x,y)
@@ -775,6 +737,39 @@ def checkEvent():
 
 
 #  ----------------------------------------------------------------
+
+Colors = pyColors()
+
+# Init pygame and screen
+pygame.display.init()
+pygame.font.init()
+pygame.mouse.set_visible(False)
+
+size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
+print "Framebuffer size: %d x %d" % (size[0], size[1])
+#screen = pygame.display.set_mode(size, pygame.FULLSCREEN)
+Screen = pygame.display.set_mode(size)
+#(width, height) = size
+
+bg = Screen.copy()
+bg.fill(Colors.Black)
+bgRect = bg.get_rect()
+#img = pygame.image.load("ISSTracker7.png")
+img = pygame.image.load("ISSTracker9cr.png").convert()
+bg.blit(img,(160,120))
+txtColor = Colors.Yellow
+txtFont = pygame.font.SysFont("Arial", 30, bold=True)
+txt = txtFont.render('ISS Tracker' , 1, txtColor)
+bg.blit(txt, (15, 28))
+txt = txtFont.render('by' , 1, txtColor)
+bg.blit(txt, (15, 64))
+txt = txtFont.render('William Phelps' , 1, txtColor)
+bg.blit(txt, (15, 100))
+Screen.blit(bg, bgRect)
+pygame.display.update()
+sleep(3)
+
+backlight(True)
 
 logging.basicConfig(filename='/home/pi/isstracker/isstracker.log',filemode='w',level=logging.DEBUG)
 logging.info("ISS-Tracker System Startup")
@@ -805,8 +800,8 @@ signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
 #print "sigterm handler set"
 
-gps = pyGPS()
-gps.start()
+GPS = pyGPS()
+GPS.start()
 gps_on = True
 
 #    if opt.blinkstick:
