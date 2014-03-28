@@ -26,7 +26,7 @@ def VisualMagnitude(iss, obs, sun):
   mag = -1.3 - 15 + 5*math.log10(iss.range/1000) - 2.5*math.log10(math.sin(phase_angle)+((math.pi-phase_angle)*math.cos(phase_angle)))
   return (mag)
 
-class ISSPass:
+class ISSData:
 # find the next ISS Pass and calculate the path for plotting
 
   def __init__(self, iss, obs, interval=15, minalt=10):
@@ -117,7 +117,7 @@ class ISSPass:
         self.obs.date = xtn
         self.iss.compute(self.obs)
 
-#      print 'ISSPass: maxalt {}, minalt {}, obs.date {}'.format(math.degrees(self.maxalt), self.minalt, self.obs.date)
+#      print 'ISSData: maxalt {}, minalt {}, obs.date {}'.format(math.degrees(self.maxalt), self.minalt, self.obs.date)
       # we got to the end of this pass and ISS did not reach minimum altitude
       # add a little time and try again...
       self.obs.date = ephem.Date(self.obs.date + 30.0 * ephem.minute) # skip ahead 30 minutes

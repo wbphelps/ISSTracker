@@ -7,16 +7,7 @@ from datetime import datetime, timedelta
 import urllib
 import urllib2
 from checkNet import checkNet
-
-Red = pygame.Color('red')
-Orange = pygame.Color('orange')
-Green = pygame.Color('green')
-Blue = pygame.Color('blue')
-Yellow = pygame.Color('yellow')
-Cyan = pygame.Color('cyan')
-Magenta = pygame.Color('magenta')
-White = pygame.Color('white')
-Black = (0,0,0)
+from pyColors import pyColors
 
 def utc_to_local(utc_dt):
     # get integer timestamp to avoid precision lost
@@ -27,9 +18,10 @@ def utc_to_local(utc_dt):
 
 class showCrew():
 
-  def __init__(self, screen, x=0, y=0):
+  def __init__(self, screen, Colors, x=0, y=0):
 #    self.screen = pygame.Surface((320,240)) # a new screen layer
     self.screen = screen
+    self.Colors = Colors
 
     self.x = x
     self.y = y
@@ -42,7 +34,7 @@ class showCrew():
     self.windowRect.x = self.x
     self.windowRect.y = self.y
 
-    txtColor = Yellow
+    txtColor = self.Colors.Yellow
     txtFont = pygame.font.SysFont("Arial", 18, bold=True)
 #    self.window.blit(self.bg, self.bgRect) # write background image
 
@@ -55,8 +47,25 @@ class showCrew():
       urllib.urlretrieve(image_url, self.imagename)
 
 #    self.imagename = "isscrew.annotated.png" # use an annotated image instead
-    image = pygame.Surface.convert(pygame.image.load(self.imagename))
+#    image = pygame.Surface.convert(pygame.image.load(self.imagename))
+    image = pygame.image.load(self.imagename).convert_alpha()
     image  = pygame.transform.scale(image, (320,240))
+
+    pixels = pygame.PixelArray(image)
+    c = 25
+    while c<30: # cut off bottom end
+      pixels.replace((c,c,c),(0,0,0),0.1)
+      c += 1
+    if self.Colors.RedOnly:
+      while c<256:
+        pixels.replace((c,c,c),(c,0,0),0.19)
+        pixels.replace((c,c,0),(c,0,0),0.19)
+        pixels.replace((0,c,0),(c,0,0),0.19)
+        pixels.replace((0,c,c),(c,0,0),0.19)
+        pixels.replace((0,0,c),(c,0,0),0.19)
+        c += 5
+    image = pixels.surface
+    del pixels
 
     self.window.blit(image, (0,0,320,240))
 

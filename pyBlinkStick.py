@@ -17,6 +17,9 @@ class BlinkStick():
     self.count = count
     self._run = False
     self.lock = threading.Lock()
+    self.Red = True
+    self.Green = True
+    self.Blue = True
 
   def blink(self, count=-1):
     with self.lock:
@@ -36,9 +39,9 @@ class BlinkStick():
       if (dm<0): dm = 4
       da = map(self.alt, 0, 90, 500, 33)
 #      print "bl mag: {:3.1f} alt: {:3.1f} dm:{:3.0f} da:{:3.0f}".format(self.mag,self.alt,dm,da)
-      self.bstick.pulse(dm,0,0,None,None,repeat,da,steps)
-      self.bstick.pulse(0,dm,0,None,None,repeat,da,steps)
-      self.bstick.pulse(0,0,dm,None,None,repeat,da,steps)
+      if self.Red:   self.bstick.pulse(dm,0,0,None,None,repeat,da,steps) # red
+      if self.Green: self.bstick.pulse(0,dm,0,None,None,repeat,da,steps) # green
+      if self.Blue:  self.bstick.pulse(0,0,dm,None,None,repeat,da,steps) # blue
       count -= 1
     self.bstick.turn_off()
     with self.lock:
