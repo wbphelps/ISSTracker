@@ -29,14 +29,14 @@ import logging
 #import threading
 
 from virtualKeyboard import VirtualKeyboard
-#from blinkstick import blinkstick
 from issTLE import issTLE
-from pyBlinkStick import BlinkStick
 from checkNet import checkNet
 from pyGPS import pyGPS, satInfo
 from pyColors import pyColors
 
 R90 = math.radians(90) # 90 degrees in radians
+
+# -------------------------------------------------------------
 
 # display choices
 Display = 'PiTFT'
@@ -46,7 +46,13 @@ Display = 'PiTFT'
 GPS_On = True
 #GPS_On = False
 
+BlinkStick_On = True
+#BlinkStick_On = False
+
 # -------------------------------------------------------------
+
+if BlinkStick_On:
+  from pyBlinkStick import BlinkStick
 
 if Display == 'PiTFT':
 
@@ -97,13 +103,13 @@ def enum(**enums):
 
 def StopAll():
     print 'StopAll'
-    global blinkstick_on, BLST, gps_on
+    global BlinkStick_on, BLST, gps_on
     pygame.quit()
     sleep(1)
     if GPS_On:
       GPS.stop()
     sleep(1)
-    if blinkstick_on:
+    if BlinkStick_on:
       BLST.stop()
 
 def Exit():
@@ -206,7 +212,7 @@ def pageAuto():
         sun = ephem.Sun(obs) # recompute the sun
         vmag=VisualMagnitude(iss, obs, sun)
         sSky.plot(issdata, utcNow, obs, iss, sun, vmag)
-        if blinkstick_on and iss.alt>0:
+        if BlinkStick_On and iss.alt>0:
           BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while utcNow.second == sec: # wait for the clock to tic
@@ -283,7 +289,7 @@ def pageDemo():
         sun = ephem.Sun(obs) # recompute the sun
         vmag=VisualMagnitude(issDemo, obs, sun)
         sSky.plot(issdata, utcNow, obs, issDemo, sun, vmag)
-        if blinkstick_on and issDemo.alt>0:
+        if BlinkStick_On and issDemo.alt>0:
           BLST.start(vmag, math.degrees(issDemo.alt), 10)
         if checkEvent():
             break # don't forget to stop blinking
@@ -553,7 +559,7 @@ def pageSky():
         sun = ephem.Sun(obs) # recompute the sun
         vmag=VisualMagnitude(iss, obs, sun)
         sSky.plot(issdata, utcNow, obs, iss, sun, vmag)
-        if blinkstick_on and iss.alt>0:
+        if BlinkStick_On and iss.alt>0:
           BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while sec == utcNow.second: # wait for clock to tic
@@ -942,8 +948,7 @@ if Display == 'LCD3.3':
     Buttons = lcdButtons()
 
 #    if opt.blinkstick:
-if True:
-    blinkstick_on = True
+if BlinkStick_On:
     BLST = BlinkStick()
     BLST.start(-3, 90, 3)
     sleep(2)
