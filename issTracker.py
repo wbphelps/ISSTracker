@@ -103,13 +103,13 @@ def enum(**enums):
 
 def StopAll():
     print 'StopAll'
-    global BlinkStick_on, BLST, gps_on
+    global BlinkStick_On, BLST, GPS_On
     pygame.quit()
     sleep(1)
     if GPS_On:
       GPS.stop()
     sleep(1)
-    if BlinkStick_on:
+    if BlinkStick_On:
       BLST.stop()
 
 def Exit():
@@ -569,7 +569,8 @@ def pageSky():
 
 # todo: if ISS was up and has set, find next pass
 #    print 'ending'
-    BLST.stop() # stop blinking
+    if BlinkStick_On:
+      BLST.stop() # stop blinking
 
 #  print 'end Sky'
 
@@ -624,12 +625,14 @@ def pageRedOnly():
 
   if Colors.RedOnly:
     Colors.setNormal()
-    BLST.Green = True
-    BLST.Blue = True
+    if BlinkStick_On:
+      BLST.Green = True
+      BLST.Blue = True
   else:
     Colors.setRed()
-    BLST.Green = False
-    BLST.Blue = False
+    if BlinkStick_On:
+      BLST.Green = False
+      BLST.Blue = False
 
   Menu = setMenu()
   page = pageMenu # temp
