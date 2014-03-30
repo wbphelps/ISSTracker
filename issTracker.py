@@ -43,6 +43,9 @@ Display = 'PiTFT'
 #Display = 'HDMI'
 #Display = 'LCD3.3'
 
+GPS_On = True
+#GPS_On = False
+
 # -------------------------------------------------------------
 
 if Display == 'PiTFT':
@@ -97,7 +100,7 @@ def StopAll():
     global blinkstick_on, BLST, gps_on
     pygame.quit()
     sleep(1)
-    if gps_on:
+    if GPS_On:
       GPS.stop()
     sleep(1)
     if blinkstick_on:
@@ -461,7 +464,7 @@ def pageDateTime():
   while page == pageDateTime:
     if checkEvent(): return
     vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
-    if gps_on and GPS.statusOK:
+    if GPS_On and GPS.statusOK:
       tn = GPS.datetime + timedelta(seconds=3) # set ahead a bit
     else:
       tn = datetime.now() + timedelta(seconds=3) # set ahead a bit
@@ -486,7 +489,7 @@ def pageLocation():
   while page == pageLocation:
     if checkEvent(): return
     vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
-    if gps_on and GPS.statusOK:
+    if GPS_On and GPS.statusOK:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(GPS.avg_latitude),math.degrees(GPS.avg_longitude))
     else:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
@@ -793,7 +796,7 @@ def checkEvent():
         Exit()
 
     # if GPS status is good, update Observer location and system date/time from GPS
-    if gps_on and GPS.statusOK:
+    if GPS_On and GPS.statusOK:
       if (datetime.now()-tGPSupdate).total_seconds() > 15: # check four times a minute
         tGPS = GPS.datetime
         tDelta = abs(tGPS-datetime.now()).total_seconds()
@@ -930,10 +933,10 @@ signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
 #print "sigterm handler set"
 
-GPS = pyGPS()
-GPS.start()
-gps_on = True
-tGPSupdate = datetime.now() # time of last GPS update
+if GPS_On:
+    GPS = pyGPS()
+    GPS.start()
+    tGPSupdate = datetime.now() # time of last GPS update
 
 if Display == 'LCD3.3':
     Buttons = lcdButtons()
