@@ -213,14 +213,15 @@ def pageAuto():
         vmag=VisualMagnitude(iss, obs, sun)
         sSky.plot(issdata, utcNow, obs, iss, sun, vmag)
         if BlinkStick_On and iss.alt>0:
-          BLST.start(vmag, math.degrees(iss.alt), 10)
+            BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while utcNow.second == sec: # wait for the clock to tic
             if checkEvent(): return
             sleep(0.1)
             utcNow = datetime.utcnow()
 
-    BLST.stop() # stop blinking
+    if BlinkStick_On:
+        BLST.stop() # stop blinking
   print 'end Auto'
 
 #  ----------------------------------------------------------------
@@ -290,13 +291,14 @@ def pageDemo():
         vmag=VisualMagnitude(issDemo, obs, sun)
         sSky.plot(issdata, utcNow, obs, issDemo, sun, vmag)
         if BlinkStick_On and issDemo.alt>0:
-          BLST.start(vmag, math.degrees(issDemo.alt), 10)
+            BLST.start(vmag, math.degrees(issDemo.alt), 10)
         if checkEvent():
             break # don't forget to stop blinking
         sleep(0.1)
         utcNow = utcNow + timedelta(seconds=1)
 
-    BLST.stop() # stop blinking
+    if BlinkStick_On:
+        BLST.stop() # stop blinking
 
 # after one demo, switch to Auto
     if page == pageDemo: page = pageAuto # could also be menu...
@@ -560,7 +562,7 @@ def pageSky():
         vmag=VisualMagnitude(iss, obs, sun)
         sSky.plot(issdata, utcNow, obs, iss, sun, vmag)
         if BlinkStick_On and iss.alt>0:
-          BLST.start(vmag, math.degrees(iss.alt), 10)
+            BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while sec == utcNow.second: # wait for clock to tic
             if checkEvent(): break
@@ -570,7 +572,7 @@ def pageSky():
 # todo: if ISS was up and has set, find next pass
 #    print 'ending'
     if BlinkStick_On:
-      BLST.stop() # stop blinking
+        BLST.stop() # stop blinking
 
 #  print 'end Sky'
 
