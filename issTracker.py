@@ -716,7 +716,8 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Passes', (lx,ly),txtFont,Colors.Yellow,pagePasses))
     ly += lh
-    Menu.append(menuItem('GPS',    (lx,ly),txtFont,Colors.Yellow,pageGPS)) # temp
+    if GPS_On:
+      Menu.append(menuItem('GPS',    (lx,ly),txtFont,Colors.Yellow,pageGPS)) # temp
     ly += lh/2
     ly += lh
     if Colors.RedOnly:
