@@ -72,7 +72,9 @@ class issTLE:
 
                 while (i1>0) and i1 < len(data):
                     i1 = data.find('TWO LINE MEAN ELEMENT SET', i1)
+                    if i1<0: break # keep from falling off the end
                     i1 = data.find('ISS', i1)
+                    if i1<0: break # keep from falling off the end
                     tle = data[i1:i1+200]
                     tle = tle.split("\n") # then split it into lines
                     tle[0] = tle[0] + ' (NASA)' # show where data is from
