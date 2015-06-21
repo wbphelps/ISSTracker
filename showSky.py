@@ -19,16 +19,23 @@ def utc_to_local(utc_dt):
 
 class showSky():
 
+
   def getxy(self, alt, azi): # alt, az in radians
 # thanks to John at Wobbleworks for the algorithm
     r = (R90 - alt)/R90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
-    x = int(self.centerX - x * self.D) # flip E/W, scale to radius, center on plot
-    y = int(self.centerY - y * self.D) # scale to radius, center on plot
+    if self.flip:
+      x = int(self.centerX - x * self.D) # flip E/W, scale to radius, center on plot
+      y = int(self.centerY - y * self.D) # scale to radius, center on plot
+    else:
+      x = int(self.centerX + x * self.D) # flip E/W, scale to radius, center on plot
+      y = int(self.centerY + y * self.D) # scale to radius, center on plot
     return (x,y)
 
-  def __init__(self, screen, Colors, issp, obs, iss, sun, x=0, y=0):
+
+
+  def __init__(self, screen, Colors, issp, obs, iss, sun, x=0, y=0, flip=False):
 
     self.screen = screen
     self.Colors = Colors
@@ -41,6 +48,7 @@ class showSky():
     self.D = self.height/2 - 2 # plot diameter
     self.centerX = self.width/2 + 2
     self.centerY = self.height/2 + 2
+    self.flip = flip
 
     self.BG = screen.copy() # make another copy for the background
 #    self.BGupdate = datetime.now() - timedelta(seconds=61) # force BG update

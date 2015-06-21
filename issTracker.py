@@ -45,6 +45,9 @@ Display = 'PiTFT'
 
 GPS_On = True
 #GPS_On = False
+GPS_Auto_Time = True
+GPS_Auto_Location = True
+#GPS_Auto_Location = False
 
 BlinkStick_On = True
 #BlinkStick_On = False
@@ -94,7 +97,8 @@ if Display == 'LCD3.3':
   os.putenv('SDL_VIDEODRIVER', 'fbcon')
   os.putenv('SDL_FBDEV'      , '/dev/fb1')
   os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-  os.putenv('SDL_MOUSEDEV'   , '/dev/input/event0')
+#  os.putenv('SDL_MOUSEDEV'   , '/dev/input/event0')
+  os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 # ---------------------------------------------------------------
 
@@ -467,7 +471,7 @@ def pageTLEs():
 #  ----------------------------------------------------------------
 
 def pageDateTime():
-  global Screen, page
+  global Screen, page, GPS_Auto_Time
   print 'DateTime'
   while page == pageDateTime:
     if checkEvent(): return
@@ -483,6 +487,8 @@ def pageDateTime():
           dt = datetime.strptime(txt, '%Y-%m-%d %H:%M:%S') # check format
           print 'dt: {}'.format(dt)
           os.system('sudo date -s "{}"'.format(dt))
+          GPS_Auto_Time = False # disable auto time update
+          print 'gps auto time off'
       except:
           pass
 
@@ -658,7 +664,7 @@ def pageSleep():
         if checkEvent():
             backlight(True)
             break
-        sleep(1)
+        sleep(0.2)
 
 #  ----------------------------------------------------------------
 
@@ -725,7 +731,7 @@ def setMenu():
     else:
       Menu.append(menuItem('RedOnly',   (lx,ly),txtFont,Colors.Red,pageRedOnly))
     ly += lh
-    Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Colors.Yellow,pageWifi))
+#    Menu.append(menuItem('Wifi',   (lx,ly),txtFont,Colors.Yellow,pageWifi))
 
     lx = 160 # right side
     ly = 5 # line position
@@ -741,7 +747,7 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Save',     (lx,ly),txtFont,Colors.LightBlue,pageSaveScreen,screenCap=True))
     ly += lh
-    Menu.append(menuItem('Sleep',    (lx,ly),txtFont,Colors.LightBlue,pageSleep))
+#    Menu.append(menuItem('Sleep',    (lx,ly),txtFont,Colors.LightBlue,pageSleep))
     ly += lh
 
     Menu.append(menuItem('Exit',     (lx,ly),txtFont,Colors.Red,pageExit))
@@ -809,17 +815,19 @@ def checkEvent():
 
     # if GPS status is good, update Observer location and system date/time from GPS
     if GPS_On and GPS.statusOK:
-      if (datetime.now()-tGPSupdate).total_seconds() > 15: # check four times a minute
-        tGPS = GPS.datetime
-        tDelta = abs(tGPS-datetime.now()).total_seconds()
-        if tDelta > 3:
-            print 'gps-now {}'.format(tDelta)
-            osCmd('sudo date -s "{}"'.format(tGPS))
-            print 'time set {}'.format(tGPS)
-        if (abs(obs.lat-GPS.avg_latitude)>math.radians(0.001)) or (abs(obs.lon-GPS.avg_longitude)>math.radians(0.001)):
-            print 'gps location update {:6.4f} {:6.4f}'.format(math.degrees(GPS.avg_latitude), math.degrees(GPS.avg_longitude))
-            obs.lat = GPS.avg_latitude # use averaged values
-            obs.lon = GPS.avg_longitude
+      if (datetime.now()-tGPSupdate).total_seconds() > 60: # check once a minute
+        if GPS_Auto_Time:
+          tGPS = GPS.datetime
+          tDelta = abs(tGPS-datetime.now()).total_seconds()
+          if tDelta > 3:
+              print 'gps-now {}'.format(tDelta)
+              osCmd('sudo date -s "{}"'.format(tGPS))
+              print 'time set {}'.format(tGPS)
+        if GPS_Auto_Location:
+          if (abs(obs.lat-GPS.avg_latitude)>math.radians(0.001)) or (abs(obs.lon-GPS.avg_longitude)>math.radians(0.001)):
+              print 'gps location update {:6.4f} {:6.4f}'.format(math.degrees(GPS.avg_latitude), math.degrees(GPS.avg_longitude))
+              obs.lat = GPS.avg_latitude # use averaged values
+              obs.lon = GPS.avg_longitude
         tGPSupdate = datetime.now()
 
 #    ev = pygame.event.poll()
@@ -880,8 +888,10 @@ def checkEvent():
 
 # set up observer location
 obs = ephem.Observer()
-obs.lat = math.radians(37.4388)
+obs.lat = math.radians(37.4388) # Palo Alto
 obs.lon = math.radians(-122.124)
+#obs.lat = math.radians(37.7628) # Yosemite
+#obs.lon = math.radians(-119.5730)
 
 tNow = datetime.utcnow()
 obs.date = tNow

@@ -40,14 +40,19 @@ class plotSky():
     r = (R90 - alt)/R90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
-    x = int(self.centerX - x * self.D) # flip E/W, scale to radius, center on plot
-    y = int(self.centerY - y * self.D) # scale to radius, center on plot
+    if self.flip:
+      x = int(self.centerX - x * self.D) # flip E/W, scale to radius, center on plot
+      y = int(self.centerY - y * self.D) # scale to radius, center on plot
+    else:
+      x = int(self.centerX + x * self.D) # flip E/W, scale to radius, center on plot
+      y = int(self.centerY + y * self.D) # scale to radius, center on plot
     return (x,y)
 
   def getxyD(self, alt, azi): # alt, az in degrees
     return self.getxy(math.radians(alt), math.radians(azi))
 
-  def __init__(self, screen, Colors, obs, centerX=162, centerY=122, D=118, fontSize=15):
+#  def __init__(self, screen, Colors, obs, centerX=162, centerY=122, D=118, fontSize=15, flip=True):
+  def __init__(self, screen, Colors, obs, centerX=162, centerY=122, D=118, fontSize=15, flip=False):
 
     self.screen = screen
     self.Colors = Colors
@@ -64,6 +69,7 @@ class plotSky():
 
     self.pLine = self.bgRect.height-2
     self.pFont = fontSize
+    self.flip = flip
 
     sun = ephem.Sun()
     sun.compute(obs)
@@ -94,7 +100,7 @@ class plotSky():
     self.bg.blit(txt, rect)
     txt = txtFont.render("S" , 1, txtColor)
     rect = txt.get_rect()
-    rect.centerx, rect.centery = self.getxyD(6,180)
+    rect.centerx, rect.centery = self.getxyD(7,180)
     self.bg.blit(txt, rect)
     txt = txtFont.render("E" , 1, txtColor)
     rect = txt.get_rect()

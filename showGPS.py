@@ -15,15 +15,19 @@ class showGPS():
     r = (R90 - alt)/R90
     x = r * math.sin(azi)
     y = r * math.cos(azi)
-    x = int(self.centerX - x * self.D) # flip E/W, scale to radius, center on plot
+    if self.flip:
+      x = int(self.centerX - x * self.D) # flip E/W, scale to radius, center on plot
+    else:
+      x = int(self.centerX + x * self.D) # flip E/W, scale to radius, center on plot
     y = int(self.centerY - y * self.D) # scale to radius, center on plot
     return (x,y)
 
-  def __init__(self, Screen, Colors, gps, obs, sun, x=0, y=0):
+  def __init__(self, Screen, Colors, gps, obs, sun, x=0, y=0, flip=False):
 
     self.Screen = Screen
     self.Colors = Colors
     self.pos = (x,y)
+    self.flip = flip
 
     self.window = Screen.copy()
     rect = self.window.get_rect()
@@ -42,7 +46,7 @@ class showGPS():
 
     self.BGupdate = datetime.now()
 
-    self.Sky = plotSky(self.BG, self.Colors, obs, self.centerX, self.centerY, self.D) # draw the sky background & compass points
+    self.Sky = plotSky(self.BG, self.Colors, obs, self.centerX, self.centerY, self.D, flip=False) # draw the sky background & compass points
     self.Sky.plotStars(obs) # add stars
     self.Sky.plotPlanets(obs) # add planets
 

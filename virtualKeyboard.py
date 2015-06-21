@@ -41,8 +41,8 @@ import pygame, time
 from pygame.locals import *
 
 from string import maketrans
-Uppercase = maketrans("abcdefghijklmnopqrstuvwxyz`1234567890-=[]\;\',./",
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+{}|:"<>?')
+Uppercase = maketrans("abcdefghijklmnopqrstuvwxyz`1234567890-=[]\:\',./",
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+{}|;"<>?')
 
 #_keyWidth = 27 # default key width including borders
 #_keyHeight = 29 # default key height 
@@ -249,7 +249,7 @@ class VirtualKeyboard():
         y += self.keyH
         x = self.x
 
-        row = ['a','s','d','f','g','h','j','k','l',';','\'','`']
+        row = ['a','s','d','f','g','h','j','k','l',':','\'','`']
         for item in row:
             onekey = VKey(item,x,y,self.keyW,self.keyH,self.keyFont,self.color)
             self.keys.append(onekey)
