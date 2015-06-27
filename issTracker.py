@@ -938,12 +938,17 @@ else:
     logging.info("Network down")
 
 ISS_TLE = issTLE()
-ISS_TLE.load()
-if (datetime.now()-ISS_TLE.date) > timedelta(days=1): # if TLE data more than 3 days old
+
+#if (datetime.now()-ISS_TLE.date) > timedelta(days=1): # if TLE data more than 3 days old
+if net.up:
     print 'fetching TLEs'
     logging.info("Fetching updated TLE data")
-    ISS_TLE.fetch()
-    ISS_TLE.save()
+    rc = ISS_TLE.fetch()
+    if rc:
+        ISS_TLE.load()
+        ISS_TLE.save()
+else:
+    ISS_TLE.load()
 
 iss = ephem.readtle(ISS_TLE.tle[0], ISS_TLE.tle[1], ISS_TLE.tle[2] )
 iss.compute(obs)
