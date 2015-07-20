@@ -5,8 +5,8 @@ class issOptions:
     def __init__(self):
         self.File = './issTracker.opt'
 #        self.Location = '37.4388', '-122.1241' # note: strings for lat/lon
-        self.Latitude = 37.4388
-        self.Longitude = -122.1241
+        self.Latitude = 0
+        self.Longitude = 0
         self.BlinkStick = False
         self.GPS = False
         self.Display = 'PiTFT'
@@ -18,18 +18,13 @@ class issOptions:
         config = ConfigParser.ConfigParser(allow_no_value=True)
         config.read(self.File)
 
-#        try:
-#            self.Location = config.get('Location','latitude', 0), config.get('Location','longitude', 0)
-#        except:
-#            self.Location = '37.4388', '-122.1241'
-
         try:
-            self.Latitude = config.getint('Options','latitude', 0)
+            self.Latitude = config.getfloat('Location','latitude')
         except:
             self.Latitude = 37.4388
 
         try:
-            self.Longitude = config.getint('Options','longitude', 0)
+            self.Longitude = config.getfloat('Location','longitude')
         except:
             self.Longitude = -122.1241
 

@@ -14,7 +14,7 @@
 #import atexit
 import gc
 import errno
-import os, sys, signal
+import os, sys, signal, linecache
 import traceback
 
 import pygame
@@ -53,6 +53,7 @@ GPS_Auto_Location = True
 
 opt = issOptions()
 opt.load()  # load the config data
+#print "Latitude {}".format(opt.Latitude)
 
 if opt.BlinkStick:
   from pyBlinkStick import BlinkStick
@@ -110,6 +111,15 @@ if Display == 'LCD3.3':
   os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
 # ---------------------------------------------------------------
+
+def printException():
+    exc_type, exc_obj, tb = sys.exc_info()
+    f = tb.tb_frame
+    lineno = tb.tb_lineno
+    filename = f.f_code.co_filename
+    linecache.checkcache(filename)
+    line = linecache.getline(filename, lineno, f.f_globals)
+    print 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
 
 def enum(**enums):
     return type('Enum', (), enums)
@@ -522,12 +532,16 @@ def pageLocation():
       try:
           loc = txt2.split(',')
 #          print 'loc: {:6.4f},{:6.4f}'.format(float(loc[0]),float(loc[1]))
-          obs.lat = math.radians(float(loc[0]))
-          obs.lon = math.radians(float(loc[1]))
+          opt.Latitude = float(loc[0])
+          opt.Longitude = float(loc[1])
+          obs.lat = math.radians(opt.Latitude)
+          obs.lon = math.radians(opt.Longitude)
 #          print 'obs set: {:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
           sun = ephem.Sun(obs) # recompute
           iss.compute(obs) # recompute
+          opt.saveLocation() # save lat/lon in options file
       except:
+          printException()
           pass
 
     page = pageMenu
@@ -897,10 +911,12 @@ def checkEvent():
 
 # set up observer location
 obs = ephem.Observer()
-obs.lat = math.radians(37.4388) # Palo Alto
-obs.lon = math.radians(-122.124)
+#obs.lat = math.radians(37.4388) # Palo Alto
+#obs.lon = math.radians(-122.124)
 #obs.lat = math.radians(37.7628) # Yosemite
 #obs.lon = math.radians(-119.5730)
+obs.lat = math.radians(opt.Latitude) # set observer location
+obs.lon = math.radians(opt.Longitude)
 
 tNow = datetime.utcnow()
 obs.date = tNow
