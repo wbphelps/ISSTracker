@@ -1,0 +1,10 @@
+[Location]
+latitude = 37.4388
+longitude = -122.1241
+
+[Options]
+blinkstick = True
+gps = True
+display = PiTFT
+logging = False
+

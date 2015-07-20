@@ -30,6 +30,7 @@ import logging
 
 from virtualKeyboard import VirtualKeyboard
 from issTLE import issTLE
+from issOptions import issOptions
 from checkNet import checkNet
 from pyGPS import pyGPS, satInfo
 from pyColors import pyColors
@@ -43,21 +44,29 @@ Display = 'PiTFT'
 #Display = 'HDMI'
 #Display = 'LCD3.3'
 
-GPS_On = True
-#GPS_On = False
 GPS_Auto_Time = True
 GPS_Auto_Location = True
 #GPS_Auto_Location = False
 
-BlinkStick_On = True
-#BlinkStick_On = False
 
 # -------------------------------------------------------------
 
-if BlinkStick_On:
+opt = issOptions()
+opt.load()  # load the config data
+
+if opt.BlinkStick:
   from pyBlinkStick import BlinkStick
+  BLST = BlinkStick()
+  if BLST.bstick == None:
+    opt.BlinkStick = False
+    print "BlinkStick disabled"
+  else:
+    BLST.start(-3, 90, 3)
+    sleep(2)
+    BLST.stop()
 
 if Display == 'PiTFT':
+  print "Display == PiTFT"
 
   import wiringpi2 as wiringpi
 
@@ -91,7 +100,7 @@ if Display == 'PiTFT':
   wiringpi.pullUpDnControl(switch_4, 2)
 
 if Display == 'LCD3.3':
-
+  print "Display == LCD3.3"
   from lcdButtons import lcdButtons
 
   os.putenv('SDL_VIDEODRIVER', 'fbcon')
@@ -106,18 +115,18 @@ def enum(**enums):
     return type('Enum', (), enums)
 
 def StopAll():
-    print 'StopAll'
-    global BlinkStick_On, BLST, GPS_On
+#    print 'StopAll'
+    global opt, BLST
     pygame.quit()
     sleep(1)
-    if GPS_On:
+    if opt.GPS:
       GPS.stop()
     sleep(1)
-    if BlinkStick_On:
+    if opt.BlinkStick:
       BLST.stop()
 
 def Exit():
-    print 'Exit'
+#    print 'Exit'
     StopAll()
     sys.exit(0)
 
@@ -143,7 +152,7 @@ def backlight(set):
         os.system("echo '0' > /sys/class/gpio/gpio252/value")
 
 def Shutdown():
-    print 'Shutdown'
+#    print 'Shutdown'
     StopAll()
     sleep(1)
 #    command = "/usr/bin/sudo /sbin/shutdown -h now"
@@ -172,7 +181,7 @@ def pageAuto():
   from showSky import showSky
   global page, Screen
 #  stime = 1
-  print 'Auto'
+#  print 'Auto'
   while (page == pageAuto):
     if checkEvent(): return
 
@@ -216,7 +225,7 @@ def pageAuto():
         sun = ephem.Sun(obs) # recompute the sun
         vmag=VisualMagnitude(iss, obs, sun)
         sSky.plot(issdata, utcNow, obs, iss, sun, vmag)
-        if BlinkStick_On and iss.alt>0:
+        if opt.BlinkStick and iss.alt>0:
             BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while utcNow.second == sec: # wait for the clock to tic
@@ -224,9 +233,9 @@ def pageAuto():
             sleep(0.1)
             utcNow = datetime.utcnow()
 
-    if BlinkStick_On:
+    if opt.BlinkStick:
         BLST.stop() # stop blinking
-  print 'end Auto'
+#  print 'end Auto'
 
 #  ----------------------------------------------------------------
 
@@ -235,7 +244,7 @@ def pageDemo():
   from showSky import showSky
   global page
   stime = 0.1 # 10x normal speed
-  print 'Demo'
+#  print 'Demo'
 
   iss_tle = ('ISS (ZARYA)', 
     '1 25544U 98067A   14043.40180105  .00016203  00000-0  28859-3 0  6670',
@@ -294,27 +303,27 @@ def pageDemo():
         sun = ephem.Sun(obs) # recompute the sun
         vmag=VisualMagnitude(issDemo, obs, sun)
         sSky.plot(issdata, utcNow, obs, issDemo, sun, vmag)
-        if BlinkStick_On and issDemo.alt>0:
+        if opt.BlinkStick and issDemo.alt>0:
             BLST.start(vmag, math.degrees(issDemo.alt), 10)
         if checkEvent():
             break # don't forget to stop blinking
         sleep(0.1)
         utcNow = utcNow + timedelta(seconds=1)
 
-    if BlinkStick_On:
+    if opt.BlinkStick:
         BLST.stop() # stop blinking
 
 # after one demo, switch to Auto
     if page == pageDemo: page = pageAuto # could also be menu...
   
-  print 'end Demo'
+#  print 'end Demo'
 
 #  ----------------------------------------------------------------
 
 def pageCrew():
   global Screen, page, pageLast
   from showCrew import showCrew
-  print 'Crew'
+#  print 'Crew'
 
   while (page == pageCrew):
 
@@ -406,7 +415,7 @@ def showPasses(iss, obs, sun):
 def pagePasses():
   global Screen, page, pageLast
   stime = 1
-  print 'Passes'
+#  print 'Passes'
 
   while (page == pagePasses):
 
@@ -461,7 +470,7 @@ def showTLEs(iss_tle):
 
 def pageTLEs():
   global page, ISS_TLE
-  print 'TLEs'
+#  print 'TLEs'
   showTLEs(ISS_TLE)
   while page == pageTLEs:
     if checkEvent():
@@ -472,23 +481,23 @@ def pageTLEs():
 
 def pageDateTime():
   global Screen, page, GPS_Auto_Time
-  print 'DateTime'
+#  print 'DateTime'
   while page == pageDateTime:
     if checkEvent(): return
     vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
-    if GPS_On and GPS.statusOK:
+    if opt.GPS and GPS.statusOK:
       tn = GPS.datetime + timedelta(seconds=3) # set ahead a bit
     else:
       tn = datetime.now() + timedelta(seconds=3) # set ahead a bit
     txt = vkey.run(tn.strftime('%Y-%m-%d %H:%M:%S'))
-    print 'datetime: {}'.format(txt)
+#    print 'datetime: {}'.format(txt)
     if len(txt)>0:
       try:
           dt = datetime.strptime(txt, '%Y-%m-%d %H:%M:%S') # check format
-          print 'dt: {}'.format(dt)
+#          print 'dt: {}'.format(dt)
           os.system('sudo date -s "{}"'.format(dt))
           GPS_Auto_Time = False # disable auto time update
-          print 'gps auto time off'
+#          print 'gps auto time off'
       except:
           pass
 
@@ -499,23 +508,23 @@ def pageDateTime():
 
 def pageLocation():
   global Screen, page
-  print 'Location'
+#  print 'Location'
   while page == pageLocation:
     if checkEvent(): return
     vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
-    if GPS_On and GPS.statusOK:
+    if opt.GPS and GPS.statusOK:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(GPS.avg_latitude),math.degrees(GPS.avg_longitude))
     else:
         txt = '{:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
     txt2 = vkey.run(txt)
-    print 'Location: {}'.format(txt2)
+#    print 'Location: {}'.format(txt2)
     if len(txt2)>0:
       try:
           loc = txt2.split(',')
-          print 'loc: {:6.4f},{:6.4f}'.format(float(loc[0]),float(loc[1]))
+#          print 'loc: {:6.4f},{:6.4f}'.format(float(loc[0]),float(loc[1]))
           obs.lat = math.radians(float(loc[0]))
           obs.lon = math.radians(float(loc[1]))
-          print 'obs set: {:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
+#          print 'obs set: {:6.4f}, {:6.4f}'.format(math.degrees(obs.lat),math.degrees(obs.lon))
           sun = ephem.Sun(obs) # recompute
           iss.compute(obs) # recompute
       except:
@@ -528,7 +537,7 @@ def pageLocation():
 
 def pageSaveScreen():
   global Screen, page
-  print 'SaveScreen'
+#  print 'SaveScreen'
 
   vkey = VirtualKeyboard(Screen,Colors.White,Colors.Yellow) # create a virtual keyboard
   txt = vkey.run(datetime.now().strftime('screen-%y%m%d-%H%M%S.jpg'))
@@ -544,7 +553,7 @@ def pageSky():
   from showSky import showSky
   global Screen, page
   stime = 1
-  print 'Sky'
+#  print 'Sky'
   while (page == pageSky):
     if checkEvent(): break
 
@@ -567,7 +576,7 @@ def pageSky():
         sun = ephem.Sun(obs) # recompute the sun
         vmag=VisualMagnitude(iss, obs, sun)
         sSky.plot(issdata, utcNow, obs, iss, sun, vmag)
-        if BlinkStick_On and iss.alt>0:
+        if opt.BlinkStick and iss.alt>0:
             BLST.start(vmag, math.degrees(iss.alt), 10)
         sec = utcNow.second
         while sec == utcNow.second: # wait for clock to tic
@@ -577,7 +586,7 @@ def pageSky():
 
 # todo: if ISS was up and has set, find next pass
 #    print 'ending'
-    if BlinkStick_On:
+    if opt.BlinkStick:
         BLST.stop() # stop blinking
 
 #  print 'end Sky'
@@ -587,7 +596,7 @@ def pageSky():
 def pageGPS():
   from showGPS import showGPS
   global Screen, page, GPS
-  print 'GPS'
+#  print 'GPS'
 
   utcNow = datetime.utcnow()
   obs.date = utcNow
@@ -617,7 +626,7 @@ def pageGPS():
 
 def pageWifi():
   global page
-  print 'Wifi'
+#  print 'Wifi'
   page = pageMenu # temp
   return # temp
 #  while (page == pageWifi):
@@ -629,16 +638,16 @@ def pageWifi():
 
 def pageRedOnly():
   global Menu, page, Colors
-  print 'RedOnly'
+#  print 'RedOnly'
 
   if Colors.RedOnly:
     Colors.setNormal()
-    if BlinkStick_On:
+    if opt.BlinkStick:
       BLST.Green = True
       BLST.Blue = True
   else:
     Colors.setRed()
-    if BlinkStick_On:
+    if opt.BlinkStick:
       BLST.Green = False
       BLST.Blue = False
 
@@ -658,7 +667,7 @@ def pageShutdown():
 
 def pageSleep():
     global page
-    print 'Sleep'
+#    print 'Sleep'
     backlight(False)
     while (page == pageSleep):
         if checkEvent():
@@ -670,7 +679,7 @@ def pageSleep():
 
 def pageCalibrate():
     global page
-    print 'Calibrate'
+#    print 'Calibrate'
 
     if Display == 'PiTFT':
 #      osCmd('sudo rmmod stmpe_ts; sudo modprobe stmpe_ts') # remove and re-install touchscreen?
@@ -722,7 +731,7 @@ def setMenu():
     ly += lh
     Menu.append(menuItem('Passes', (lx,ly),txtFont,Colors.Yellow,pagePasses))
     ly += lh
-    if GPS_On:
+    if opt.GPS:
       Menu.append(menuItem('GPS',    (lx,ly),txtFont,Colors.Yellow,pageGPS)) # temp
     ly += lh/2
     ly += lh
@@ -745,7 +754,7 @@ def setMenu():
     ly += lh/2
     Menu.append(menuItem('Calibrate',(lx,ly),txtFont,Colors.LightBlue,pageCalibrate))
     ly += lh
-    Menu.append(menuItem('Save',     (lx,ly),txtFont,Colors.LightBlue,pageSaveScreen,screenCap=True))
+    Menu.append(menuItem('SaveScreen',(lx,ly),txtFont,Colors.LightBlue,pageSaveScreen,screenCap=True))
     ly += lh
 #    Menu.append(menuItem('Sleep',    (lx,ly),txtFont,Colors.LightBlue,pageSleep))
     ly += lh
@@ -776,7 +785,7 @@ def drawMenu(Menu):
 def pageMenu():
     global Screen, menuScrn, menuRect
     global screen_copy
-    print 'Menu'
+#    print 'Menu'
 
     Screen.blit(menuScrn, menuRect)
     pygame.display.update()
@@ -812,20 +821,20 @@ def checkEvent():
         print 'buttons {} {}'.format(Buttons.keybits, buttons)
       if Buttons.keybits == 17:
         Exit()
-
+      
     # if GPS status is good, update Observer location and system date/time from GPS
-    if GPS_On and GPS.statusOK:
+    if opt.GPS and GPS.statusOK:
       if (datetime.now()-tGPSupdate).total_seconds() > 60: # check once a minute
         if GPS_Auto_Time:
           tGPS = GPS.datetime
           tDelta = abs(tGPS-datetime.now()).total_seconds()
           if tDelta > 3:
-              print 'gps-now {}'.format(tDelta)
+#              print 'gps-now {}'.format(tDelta)
               osCmd('sudo date -s "{}"'.format(tGPS))
-              print 'time set {}'.format(tGPS)
+#              print 'time set {}'.format(tGPS)
         if GPS_Auto_Location:
           if (abs(obs.lat-GPS.avg_latitude)>math.radians(0.001)) or (abs(obs.lon-GPS.avg_longitude)>math.radians(0.001)):
-              print 'gps location update {:6.4f} {:6.4f}'.format(math.degrees(GPS.avg_latitude), math.degrees(GPS.avg_longitude))
+#              print 'gps location update {:6.4f} {:6.4f}'.format(math.degrees(GPS.avg_latitude), math.degrees(GPS.avg_longitude))
               obs.lat = GPS.avg_latitude # use averaged values
               obs.lon = GPS.avg_longitude
         tGPSupdate = datetime.now()
@@ -840,7 +849,7 @@ def checkEvent():
 #    print "ev: {}".format(ev)
 
         if (ev.type == pygame.MOUSEBUTTONDOWN):
-          print "mouse dn, x,y = {}, page={}".format(ev.pos,page)
+#          print "mouse dn, x,y = {}, page={}".format(ev.pos,page)
           mouseX,mouseY = ev.pos # remember position
           if page == pageMenu: # what numerical value ???
             for item in Menu:
@@ -851,7 +860,7 @@ def checkEvent():
             screen_copy = Screen.copy() # don't capture menu screen
 
         if (ev.type == pygame.MOUSEBUTTONUP):
-          print "mouse up, x,y = {}".format(ev.pos)
+#          print "mouse up, x,y = {}".format(ev.pos)
           x,y = ev.pos # use mouse down positions for menu selection
 
 #          print "page {}".format(page)
@@ -941,7 +950,7 @@ ISS_TLE = issTLE()
 
 #if (datetime.now()-ISS_TLE.date) > timedelta(days=1): # if TLE data more than 3 days old
 if net.up:
-    print 'fetching TLEs'
+#    print 'fetching TLEs'
     logging.info("Fetching updated TLE data")
     rc = ISS_TLE.fetch()
     if rc:
@@ -960,20 +969,13 @@ signal.signal(signal.SIGHUP, signal_handler)
 signal.signal(signal.SIGQUIT, signal_handler)
 #print "sigterm handler set"
 
-if GPS_On:
+if opt.GPS:
     GPS = pyGPS()
     GPS.start()
     tGPSupdate = datetime.now() # time of last GPS update
 
 if Display == 'LCD3.3':
     Buttons = lcdButtons()
-
-#    if opt.blinkstick:
-if BlinkStick_On:
-    BLST = BlinkStick()
-    BLST.start(-3, 90, 3)
-    sleep(2)
-    BLST.stop()
 
 Menu = setMenu() # set up menu
 page = pageAuto
